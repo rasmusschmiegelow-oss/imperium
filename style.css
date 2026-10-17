@@ -223,11 +223,54 @@ select { background: var(--ink-2); border: 1px solid var(--line); border-radius:
 .setup .actions .primary:hover { background: var(--bronze-hi); }
 .hint { color: var(--muted); font-size: 14px; margin-top: 14px; }
 
+
+/* ---------- Tilføjelser: tilfredshed, guide, fokus, handel, bystater ---------- */
+.stat .unhappy, .unhappy { color: var(--warn); }
+.stat .happy, .happy { color: var(--good); }
+#guide {
+  position: fixed; right: max(12px, env(safe-area-inset-right, 0px)); top: 232px; z-index: 11;
+  width: min(300px, calc(100vw - 24px)); background: rgba(15,19,26,.97); border: 1px solid var(--bronze);
+  border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 30px rgba(0,0,0,.5); font-size: 14px;
+}
+#guide .gh { display: flex; align-items: center; justify-content: space-between; font-family: var(--display); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--bronze); }
+#guide .x { background: none; border: 1px solid var(--line); border-radius: var(--radius); width: 26px; height: 26px; line-height: 1; }
+#guide p { margin: 6px 0 8px; }
+#guide .gb { display: flex; justify-content: flex-end; }
+.happy-row { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 14px; margin-bottom: 6px; }
+.happy-row span { color: var(--muted); }
+.chip.neg { background: rgba(228,108,96,.16); color: var(--bad); }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.seg button { background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 4px; font-size: 13px; font-weight: 500; }
+.seg button.on { border-color: var(--bronze-hi); color: var(--bronze-hi); background: #2a2a24; }
+.hint-s { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--bronze-hi); text-decoration: underline; text-underline-offset: 2px; font-size: 12.5px; }
+.drow .btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.drow.minor { align-items: start; }
+.trade { background: var(--ink-2); border-radius: 0 0 8px 8px; margin-top: -6px; padding: 8px 12px 12px; display: grid; gap: 8px; border-top: 1px dashed var(--line); }
+.trade .actions-row { margin-top: 4px; }
+.trade .sub { color: var(--muted); font-size: 13px; }
+.status.neutral { background: rgba(155,163,173,.15); color: var(--muted); }
+.infbar { position: relative; height: 6px; background: var(--ink-3); border-radius: 3px; margin: 6px 0 3px; max-width: 320px; }
+.infbar span { display: block; height: 100%; border-radius: 3px; background: var(--bronze); }
+.infbar em { position: absolute; top: -2px; width: 1px; height: 10px; background: var(--muted); }
+.techgrid { position: relative; }
+.techgrid .techcol, .techgrid .tech { position: relative; z-index: 1; }
+.techlines { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; overflow: visible; }
+.techlines path { fill: none; stroke-width: 1.6; }
+.techlines path.known { stroke: #3c7a4c; }
+.techlines path.open { stroke: var(--bronze); }
+.techlines path.locked { stroke: #3a4352; }
+.toggles { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; }
+.toggles label { display: flex; align-items: center; gap: 6px; }
+.field.check .checkrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+
 @media (max-width: 760px) {
   .brand, .stat .k, .stat .bar { display: none; }
   #topbar { gap: 2px; }
   .topnav button { padding: 5px 8px; font-size: 13px; }
   #minimap-wrap { display: none; }
+  #guide { top: auto; bottom: calc(190px + env(safe-area-inset-bottom, 0px)); }
+  .stat span:not(.k):not(.bar) { display: none; }
   #panel { bottom: calc(118px + env(safe-area-inset-bottom, 0px)); }
   #endturn { padding: 11px 18px; font-size: 14px; }
   .setup .row { grid-template-columns: 1fr; }
