@@ -277,3 +277,9 @@ select { background: var(--ink-2); border: 1px solid var(--line); border-radius:
   .drawer { top: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+/* Stregikoner fra grafikarket */
+#panel h3 .glyph { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--unit-civ, var(--ink-3)); color: #fff; flex: none; }
+#panel h3 .glyph svg, .stack button svg, .bopt .g svg { display: block; }
+.stack button { display: inline-grid; place-items: center; color: var(--text); }
+.bopt .g { display: grid; place-items: center; }

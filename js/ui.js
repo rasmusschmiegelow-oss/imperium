@@ -28,105 +28,6 @@ function worldToTile(wx, wy) {
   return row >= 0 && row < G.h ? idx(col, row) : -1;
 }
 
-// ---------- Grafik ----------
-// Al tegning af enheder, terræn, ressourcer og byer går gennem ART, så rigtige sprites
-// kan sættes ind senere: læg et billede i ART.images['unit_<type>'], ['terrain_<terræn>'],
-// ['res_<ressource>'], ['city'] eller ['camp'], og det bruges automatisk.
-const ART = {
-  images: {},
-  img(key) { const im = this.images[key]; return im && im.complete && im.naturalWidth ? im : null; },
-  unitGlyph(type) { return UNITS[type].glyph; },
-  unit(ctx, type, cx, cy, r) {
-    const im = this.img('unit_' + type);
-    if (im) { ctx.drawImage(im, cx - r, cy - r, r * 2, r * 2); return; }
-    ctx.font = `${r * 1.15}px ${EMOJI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
-    ctx.fillText(UNITS[type].glyph, cx, cy + 1);
-  },
-  resource(ctx, res, cx, cy, s) {
-    const im = this.img('res_' + res);
-    ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.arc(cx, cy, s * 0.6, 0, 7); ctx.fill();
-    if (im) { ctx.drawImage(im, cx - s * 0.5, cy - s * 0.5, s, s); return; }
-    ctx.font = `${s}px ${EMOJI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
-    ctx.fillText(RESOURCES[res].glyph, cx, cy + 1);
-  },
-  terrain(ctx, t, i, cx, cy, detail) {
-    const T = TERRAIN[t.t];
-    UI.hexPath(cx, cy, S + 0.6);
-    const im = this.img('terrain_' + t.t);
-    if (im) {
-      ctx.save(); ctx.clip(); ctx.drawImage(im, cx - S * SQ3 / 2 - 1, cy - S - 1, S * SQ3 + 2, S * 2 + 2); ctx.restore();
-      return;
-    }
-    ctx.fillStyle = T.color; ctx.fill();
-    if (!detail) return;
-    const r = mulberry32(t.deco + i);
-    ctx.save();
-    if (t.t === 'forest' || t.t === 'jungle') {
-      ctx.fillStyle = t.t === 'forest' ? '#2d5326' : '#1f4720';
-      for (let k = 0; k < 5; k++) {
-        const ox = (r() - 0.5) * S * 1.1, oy = (r() - 0.5) * S * 0.9, s = S * (0.22 + r() * 0.08);
-        ctx.beginPath(); ctx.moveTo(cx + ox, cy + oy - s * 1.3); ctx.lineTo(cx + ox + s * 0.75, cy + oy + s * 0.6); ctx.lineTo(cx + ox - s * 0.75, cy + oy + s * 0.6); ctx.closePath(); ctx.fill();
-      }
-    } else if (t.t === 'hills') {
-      ctx.strokeStyle = 'rgba(70,52,28,0.55)'; ctx.lineWidth = 2.2;
-      for (let k = 0; k < 2; k++) {
-        const ox = (k ? 0.28 : -0.25) * S, oy = (k ? 0.12 : -0.1) * S;
-        ctx.beginPath(); ctx.arc(cx + ox, cy + oy + S * 0.18, S * 0.32, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
-      }
-    } else if (t.t === 'mountain') {
-      for (let k = 0; k < 2; k++) {
-        const ox = (k ? 0.3 : -0.18) * S, s = S * (k ? 0.45 : 0.62);
-        ctx.fillStyle = k ? '#625c57' : '#56504b';
-        ctx.beginPath(); ctx.moveTo(cx + ox, cy - s * 0.85); ctx.lineTo(cx + ox + s * 0.8, cy + s * 0.55); ctx.lineTo(cx + ox - s * 0.8, cy + s * 0.55); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#e8ecef';
-        ctx.beginPath(); ctx.moveTo(cx + ox, cy - s * 0.85); ctx.lineTo(cx + ox + s * 0.27, cy - s * 0.4); ctx.lineTo(cx + ox - s * 0.27, cy - s * 0.4); ctx.closePath(); ctx.fill();
-      }
-    } else if (t.t === 'desert') {
-      ctx.fillStyle = 'rgba(160,128,60,0.45)';
-      for (let k = 0; k < 6; k++) { ctx.beginPath(); ctx.arc(cx + (r() - 0.5) * S * 1.2, cy + (r() - 0.5) * S, 1.3, 0, 7); ctx.fill(); }
-    } else if (t.t === 'ocean' || t.t === 'coast') {
-      ctx.strokeStyle = t.t === 'ocean' ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1.4;
-      for (let k = 0; k < 2; k++) {
-        const ox = (r() - 0.5) * S, oy = (r() - 0.5) * S * 0.8;
-        ctx.beginPath(); ctx.moveTo(cx + ox - 7, cy + oy); ctx.quadraticCurveTo(cx + ox - 3.5, cy + oy - 3, cx + ox, cy + oy); ctx.quadraticCurveTo(cx + ox + 3.5, cy + oy + 3, cx + ox + 7, cy + oy); ctx.stroke();
-      }
-    } else if (t.t === 'grass' || t.t === 'plains') {
-      ctx.strokeStyle = t.t === 'grass' ? 'rgba(40,80,20,0.35)' : 'rgba(110,100,30,0.35)'; ctx.lineWidth = 1.2;
-      for (let k = 0; k < 3; k++) {
-        const ox = (r() - 0.5) * S * 1.1, oy = (r() - 0.5) * S * 0.9;
-        ctx.beginPath(); ctx.moveTo(cx + ox - 2, cy + oy); ctx.lineTo(cx + ox, cy + oy - 4); ctx.lineTo(cx + ox + 2, cy + oy); ctx.stroke();
-      }
-    } else if (t.t === 'tundra') {
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(cx + (r() - 0.5) * S, cy + (r() - 0.5) * S * 0.8, 4, 1.6, 0, 0, 7); ctx.fill(); }
-    }
-    ctx.restore();
-  },
-  city(ctx, c, cx, cy) {
-    const col = civ(c.civ).color;
-    const im = this.img('city');
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; UI.hexPath(cx, cy + 2, S * 0.78); ctx.fill();
-    ctx.fillStyle = col; UI.hexPath(cx, cy, S * 0.74); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5; ctx.stroke();
-    if (cityHasWalls(c)) { ctx.strokeStyle = '#d8d0bf'; ctx.lineWidth = 3; UI.hexPath(cx, cy, S * 0.8); ctx.stroke(); }
-    if (im) { ctx.drawImage(im, cx - S * 0.6, cy - S * 0.6, S * 1.2, S * 1.2); return; }
-    const houses = Math.min(5, 2 + Math.floor(c.pop / 3));
-    const spots = [[-9, 3], [8, 4], [0, -6], [-14, -6], [14, -5]];
-    for (let k = 0; k < houses; k++) {
-      const [hx, hy] = spots[k]; const w = 9, h = 7;
-      ctx.fillStyle = '#efe6d2'; ctx.fillRect(cx + hx - w / 2, cy + hy - h / 2, w, h);
-      ctx.fillStyle = '#7b3f2a'; ctx.beginPath(); ctx.moveTo(cx + hx - w / 2 - 1.5, cy + hy - h / 2); ctx.lineTo(cx + hx, cy + hy - h / 2 - 6); ctx.lineTo(cx + hx + w / 2 + 1.5, cy + hy - h / 2); ctx.closePath(); ctx.fill();
-    }
-  },
-  camp(ctx, cx, cy) {
-    const im = this.img('camp');
-    ctx.fillStyle = 'rgba(30,20,15,0.65)'; ctx.beginPath(); ctx.arc(cx, cy, S * 0.42, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#b5482f'; ctx.lineWidth = 2; ctx.stroke();
-    if (im) { ctx.drawImage(im, cx - S * 0.35, cy - S * 0.35, S * 0.7, S * 0.7); return; }
-    ctx.font = `${S * 0.5}px ${EMOJI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText('⛺', cx, cy + 1);
-  },
-};
-
 const GUIDE = [
   { text: 'Grundlæg din første by. Vælg bosætteren, og tryk B eller knappen Grundlæg by.', done: () => civCities(G.human).length > 0 },
   { text: 'Vælg, hvad byen skal producere. En kriger beskytter byen, en arbejder forbedrer jorden.', done: () => civCities(G.human).some(c => c.build) || G.turn > 3 },
@@ -709,7 +610,7 @@ const UI = {
       const stackUnits = unitsAt(idx(u.x, u.y)).filter(v => v.civ === u.civ);
       const stack = stackUnits.length > 1 ? `<div class="stack">${stackUnits.map(v => `<button type="button" title="${esc(UNITS[v.type].name)}" data-u="${v.id}" class="${v === u ? 'on' : ''}">${ART.unitGlyph(v.type)}</button>`).join('')}</div>` : '';
       const hpc = u.hp > 60 ? 'var(--good)' : u.hp > 30 ? 'var(--warn)' : 'var(--bad)';
-      p.innerHTML = `<h3><span class="glyph">${ART.unitGlyph(u.type)}</span>${esc(T.name)}${u.vet ? ' <span class="chip w">Veteran</span>' : ''}${generalNear(u) && isMil(u) ? ' <span class="chip w">General</span>' : ''}</h3>
+      p.innerHTML = `<h3><span class="glyph" style="--unit-civ:${cv.color}">${ART.unitGlyph(u.type, 22, '#FFFFFF')}</span>${esc(T.name)}${u.vet ? ' <span class="chip w">Veteran</span>' : ''}${generalNear(u) && isMil(u) ? ' <span class="chip w">General</span>' : ''}</h3>
         <div class="sub">${own ? '' : esc(cv.name) + ' · '}${status || (T.desc ? esc(T.desc) : TERRAIN[G.tiles[idx(u.x, u.y)].t].name)}</div>
         <div class="kv">${T.str ? `<div><span>Styrke</span> <b>${T.str}</b></div>` : ''}${T.ranged ? `<div><span>Afstand</span> <b>${T.ranged}</b> <span>(${T.range} felter)</span></div>` : ''}
         <div><span>Bevægelse</span> <b>${fmt(u.moves)}/${T.moves}</b></div><div><span>Liv</span> <b>${u.hp}</b></div></div>
@@ -902,7 +803,7 @@ const UI = {
         ctx.font = '800 9.5px "Alegreya Sans", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         for (const [col, v] of pips) { ctx.fillStyle = col; ctx.fillText(String(v), px + 2, cy + 12.5); px += 11; }
       }
-      if (locked) { ctx.font = `11px ${EMOJI}`; ctx.textAlign = 'center'; ctx.fillText('🔒', cx, cy - 10); }
+      if (locked) ART.misc(ctx, 'lock', cx, cy - 10, 12);
     }
   },
 
@@ -1001,7 +902,7 @@ const UI = {
       ctx.font = '700 10px "Alegreya Sans", sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(us.length), cx + r * 0.85, cy - r * 0.85 + 0.5);
     }
-    if (u.work) { ctx.font = `${r * 0.8}px ${EMOJI}`; ctx.fillText('🔨', cx + r * 0.9, cy + r * 0.6); }
+    if (u.work) { ctx.fillStyle = '#0f131a'; ctx.beginPath(); ctx.arc(cx + r * 0.9, cy + r * 0.6, 7, 0, 7); ctx.fill(); ART.misc(ctx, 'work', cx + r * 0.9, cy + r * 0.6, 11); }
   },
 
   drawPath(u, path, turns) {
@@ -1082,7 +983,7 @@ const UI = {
     const turns = (b) => { const left = Math.max(0, buildCost(b) - c.prod); return y.p > 0 ? Math.max(1, Math.ceil(left / y.p)) : '∞'; };
     const bc = buyCost(c);
     const opts = buildOptions(c);
-    const glyphFor = (o) => o.kind === 'unit' ? ART.unitGlyph(o.key) : o.kind === 'bld' ? '🏛' : o.kind === 'wonder' ? '🗿' : o.key === 'spaceship' ? '🚀' : '💰';
+    const glyphFor = (o) => o.kind === 'unit' ? ART.unitGlyph(o.key, 22, '#ECE6D8') : ART.miscGlyph(o.kind === 'bld' ? 'bld' : o.kind === 'wonder' ? 'wonder' : o.key === 'spaceship' ? 'spaceship' : 'wealth');
     const descFor = (o) => {
       if (o.kind === 'unit') { const U = UNITS[o.key]; return U.str ? `Styrke ${U.str}${U.ranged ? ` · afstand ${U.ranged}` : ''} · ${U.moves} bevægelse${U.domain === 'sea' ? ' · skib' : ''}` : U.desc; }
       return (o.kind === 'bld' ? BUILDINGS : o.kind === 'wonder' ? WONDERS : PROJECTS)[o.key].desc + (o.kind === 'bld' && BUILDINGS[o.key].upkeep ? ` · ${BUILDINGS[o.key].upkeep} guld/tur` : '');
