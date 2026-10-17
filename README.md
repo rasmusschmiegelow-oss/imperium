@@ -9,11 +9,14 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Verden:** tilfældige sekskantskort, der går rundt som en globus, med korttyperne Kontinenter, Pangæa og Øer. Kortene har floder, ressourcer, luksusvarer og krigståge.
 - **Byer:** byerne vokser, producerer og udvider deres grænser. Du kan vælge fokus (mad, produktion, handel) og låse de felter, indbyggerne arbejder på.
 - **Tilfredshed:** utilfredse indbyggere arbejder ikke. Templer, markeder, arenaer, katedraler, garnisoner og luksusvarer holder byerne glade, mens store riger bliver sværere at styre.
-- **Forskning:** 31 teknologier fra Landbrug til Rumfart, vist i et teknologitræ med forbindelser.
-- **Militær:** landenheder, krigsskibe og indskibning. Med Sejlads sejler landenheder langs kysten, med Astronomi over åbent hav. Gamle enheder kan opgraderes for guld. Det er sværere at angribe over floder.
+- **Regeringsformer:** Despoti, Monarki, Republik, Demokrati og Kommunisme, hver med sine fordele og ulemper. Et skifte koster et par ture med anarki.
+- **Forskning:** 34 teknologier fra Landbrug til Rumfart, vist i et teknologitræ med forbindelser.
+- **Militær:** landenheder, krigsskibe og indskibning. Med Sejlads sejler landenheder langs kysten, med Astronomi over åbent hav. Gamle enheder kan opgraderes for guld. Det er sværere at angribe over floder. Enheder samler erfaring og vælger forfremmelser som Stormtropper, Skovkæmper, Præcision og Felthospital.
+- **Strategiske ressourcer:** heste, jern, kul og olie på dit land kræves til bestemte enheder, fx ryttere, sværdkæmpere, jernklædte og kampvogne.
+- **Udforskning:** ruiner giver guld, teknologi, kort eller nye enheder, og naturvidundere som Uluru, Kilimanjaro og Fuji giver store fordele.
 - **Store personligheder:** videnskabsmand, købmand, ingeniør og general.
 - **Handel:** karavaner opretter handelsruter mellem byer, og du kan købe og sælge teknologi med andre folk.
-- **Diplomati:** krig og fred med 1–6 computermodstandere, der samler hære, bygger veje og kommer med tilbud. Bystater kan blive dine venner eller allierede, hvis du giver dem gaver.
+- **Diplomati:** krig og fred med 1–6 computermodstandere, der samler hære, bygger veje og kommer med tilbud. De husker, hvad du har gjort, og har en holdning til dig. I kan indgå åbne grænser, forsvarspagter og fælles krig, og de kan stille krav. Bystater kan blive dine venner eller allierede, hvis du giver dem gaver.
 - **Barbarer:** barbarer angriber fra lejre i tomme områder. Hvis du ødelægger en lejr, får du guld.
 - **Oplevelse:** du kan se modstandernes træk som animation. Spillet har lydeffekter og generativ musik, en guide de første ture og virker på mobil.
 - **Sejr:** ved erobring, ved rumskib eller på point efter tur 400. Spillet gemmes automatisk i browseren.
@@ -37,6 +40,8 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - `js/data.js`: terræn, ressourcer, enheder, bygninger, vidundere, teknologier, folk og bystater
 - `js/game.js`: regler for kort, bevægelse, kamp, byer, tilfredshed, handel, bystater, barbarer og turgang
 - `js/ai.js`: hvad computermodstanderne, bystaterne og barbarerne beslutter
+- `js/realm.js`: regeringsformer, erfaring og forfremmelser, ruiner, naturvidundere, strategiske ressourcer og diplomatiske relationer
+- `js/art.js`: grafikken fra Paper-filen "Imperium · Grafik" (stregikoner, terræn, byer og ressourcer)
 - `js/ui.js`: tegning af kortet, input, paneler, animationer og guide
 - `js/audio.js`: lydeffekter og musik med WebAudio
 

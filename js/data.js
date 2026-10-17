@@ -16,11 +16,14 @@ const TERRAIN = {
 };
 
 // lux: luksusvare, giver +1 tilfredshed i alle byer
+// strat: strategisk ressource, som visse enheder kræver. reveal: teknologien, der gør den synlig
 const RESOURCES = {
   wheat:  { name: 'Hvede',    f: 2, p: 0, t: 0, on: ['grass', 'plains'],           glyph: '🌾' },
   cattle: { name: 'Kvæg',     f: 1, p: 1, t: 0, on: ['grass'],                     glyph: '🐄' },
-  horses: { name: 'Heste',    f: 0, p: 2, t: 0, on: ['plains', 'grass', 'tundra'], glyph: '🐎' },
-  iron:   { name: 'Jern',     f: 0, p: 2, t: 0, on: ['hills', 'tundra'],           glyph: '⛏' },
+  horses: { name: 'Heste',    f: 0, p: 2, t: 0, on: ['plains', 'grass', 'tundra'], glyph: '🐎', strat: true },
+  iron:   { name: 'Jern',     f: 0, p: 2, t: 0, on: ['hills', 'tundra'],           glyph: '⛏', strat: true },
+  coal:   { name: 'Kul',      f: 0, p: 2, t: 0, on: ['hills', 'plains', 'tundra'], glyph: '⚫', strat: true, reveal: 'metallurgy' },
+  oil:    { name: 'Olie',     f: 0, p: 1, t: 1, on: ['desert', 'tundra', 'jungle'], glyph: '🛢', strat: true, reveal: 'electricity' },
   fish:   { name: 'Fisk',     f: 2, p: 0, t: 0, on: ['coast'],                     glyph: '🐟' },
   deer:   { name: 'Hjorte',   f: 1, p: 1, t: 0, on: ['forest', 'tundra'],          glyph: '🦌' },
   oasis:  { name: 'Oase',     f: 3, p: 0, t: 2, on: ['desert'],                    glyph: '🌴' },
@@ -43,23 +46,23 @@ const UNITS = {
   warrior:   { name: 'Kriger',        cost: 30,  str: 6,  moves: 2, cls: 'melee',   tech: null,       glyph: '🪓', obs: 'iron', up: 'swordsman' },
   archer:    { name: 'Bueskytte',     cost: 40,  str: 5,  ranged: 7,  range: 2, moves: 2, cls: 'ranged', tech: 'archery', glyph: '🏹', obs: 'university', up: 'crossbow' },
   spearman:  { name: 'Spydkæmper',    cost: 50,  str: 10, moves: 2, cls: 'melee',   tech: 'bronze',   glyph: '🔱', antiMounted: true, obs: 'feudal', up: 'pikeman' },
-  horseman:  { name: 'Rytter',        cost: 60,  str: 12, moves: 4, cls: 'mounted', tech: 'riding',   glyph: '🐴', obs: 'chivalry', up: 'knight' },
-  swordsman: { name: 'Sværdkæmper',   cost: 70,  str: 14, moves: 2, cls: 'melee',   tech: 'iron',     glyph: '⚔', obs: 'gunpowder', up: 'musketeer' },
+  horseman:  { name: 'Rytter',        cost: 60,  str: 12, moves: 4, cls: 'mounted', tech: 'riding',   needs: 'horses', glyph: '🐴', obs: 'chivalry', up: 'knight' },
+  swordsman: { name: 'Sværdkæmper',   cost: 70,  str: 14, moves: 2, cls: 'melee',   tech: 'iron',     needs: 'iron', glyph: '⚔', obs: 'gunpowder', up: 'musketeer' },
   catapult:  { name: 'Katapult',      cost: 80,  str: 7,  ranged: 14, range: 2, moves: 2, cls: 'siege', tech: 'math', glyph: '☄', obs: 'metallurgy', up: 'cannon' },
   pikeman:   { name: 'Pikenér',       cost: 80,  str: 16, moves: 2, cls: 'melee',   tech: 'feudal',   glyph: '🗡', antiMounted: true, obs: 'gunpowder', up: 'musketeer' },
-  knight:    { name: 'Ridder',        cost: 100, str: 20, moves: 4, cls: 'mounted', tech: 'chivalry', glyph: '🛡', obs: 'combustion', up: 'tank' },
+  knight:    { name: 'Ridder',        cost: 100, str: 20, moves: 4, cls: 'mounted', tech: 'chivalry', needs: 'horses', glyph: '🛡', obs: 'combustion', up: 'tank' },
   crossbow:  { name: 'Armbrøstskytte', cost: 90, str: 12, ranged: 18, range: 2, moves: 2, cls: 'ranged', tech: 'university', glyph: '🎯', obs: 'ballistics', up: 'artillery' },
   musketeer: { name: 'Musketer',      cost: 120, str: 24, moves: 2, cls: 'melee',   tech: 'gunpowder', glyph: '💥', obs: 'rifling', up: 'rifleman' },
-  cannon:    { name: 'Kanon',         cost: 140, str: 14, ranged: 26, range: 2, moves: 2, cls: 'siege', tech: 'metallurgy', glyph: '💣', obs: 'ballistics', up: 'artillery' },
+  cannon:    { name: 'Kanon',         cost: 140, str: 14, ranged: 26, range: 2, moves: 2, cls: 'siege', tech: 'metallurgy', needs: 'iron', glyph: '💣', obs: 'ballistics', up: 'artillery' },
   rifleman:  { name: 'Riffelskytte',  cost: 180, str: 34, moves: 2, cls: 'melee',   tech: 'rifling',  glyph: '🎖', obs: 'combustion', up: 'infantry' },
-  artillery: { name: 'Artilleri',     cost: 220, str: 20, ranged: 42, range: 3, moves: 2, cls: 'siege', tech: 'ballistics', glyph: '🎇' },
+  artillery: { name: 'Artilleri',     cost: 220, str: 20, ranged: 42, range: 3, moves: 2, cls: 'siege', tech: 'ballistics', needs: 'coal', glyph: '🎇' },
   infantry:  { name: 'Infanteri',     cost: 250, str: 50, moves: 2, cls: 'melee',   tech: 'combustion', glyph: '🪖' },
-  tank:      { name: 'Kampvogn',      cost: 300, str: 70, moves: 5, cls: 'armor',   tech: 'combustion', glyph: '🚜' },
+  tank:      { name: 'Kampvogn',      cost: 300, str: 70, moves: 5, cls: 'armor',   tech: 'combustion', needs: 'oil', glyph: '🚜' },
   // skibe
   galley:    { name: 'Galej',         cost: 50,  str: 9,  moves: 3, cls: 'naval', domain: 'sea', coastOnly: true, tech: 'sailing', glyph: '⛵', obs: 'industry', up: 'ironclad' },
-  frigate:   { name: 'Fregat',        cost: 120, str: 14, ranged: 22, range: 2, moves: 4, cls: 'naval', domain: 'sea', tech: 'gunpowder', glyph: '🚢', obs: 'combustion', up: 'battleship' },
-  ironclad:  { name: 'Jernklædt',     cost: 180, str: 40, moves: 4, cls: 'naval', domain: 'sea', tech: 'industry', glyph: '⚓', up: 'battleship' },
-  battleship:{ name: 'Slagskib',      cost: 320, str: 50, ranged: 60, range: 3, moves: 5, cls: 'naval', domain: 'sea', tech: 'combustion', glyph: '🛳' },
+  frigate:   { name: 'Fregat',        cost: 120, str: 14, ranged: 22, range: 2, moves: 4, cls: 'naval', domain: 'sea', tech: 'gunpowder', needs: 'iron', glyph: '🚢', obs: 'combustion', up: 'battleship' },
+  ironclad:  { name: 'Jernklædt',     cost: 180, str: 40, moves: 4, cls: 'naval', domain: 'sea', tech: 'industry', needs: 'coal', glyph: '⚓', up: 'battleship' },
+  battleship:{ name: 'Slagskib',      cost: 320, str: 50, ranged: 60, range: 3, moves: 5, cls: 'naval', domain: 'sea', tech: 'combustion', needs: 'oil', glyph: '🛳' },
   // store personligheder (kan ikke bygges)
   gp_sci:    { name: 'Videnskabsmand', cost: 0, str: 0, moves: 2, cls: 'civil', gp: true, glyph: '🔬', desc: 'Kan bruges til et stort forskningsspring.' },
   gp_mer:    { name: 'Købmand',       cost: 0, str: 0, moves: 2, cls: 'civil', gp: true, glyph: '💰', desc: 'Kan gennemføre en handelsmission for guld.' },
@@ -69,7 +72,7 @@ const UNITS = {
 
 const BUILDINGS = {
   granary:    { name: 'Kornkammer',   cost: 60,  upkeep: 1, tech: 'pottery',    desc: '+2 mad' },
-  barracks:   { name: 'Kaserne',      cost: 50,  upkeep: 1, tech: 'bronze',     desc: 'Nye enheder bliver veteraner (+25 % styrke)', gp: 'gen' },
+  barracks:   { name: 'Kaserne',      cost: 50,  upkeep: 1, tech: 'bronze',     desc: 'Nye enheder starter med 15 erfaring (en forfremmelse)', gp: 'gen' },
   watermill:  { name: 'Vandmølle',    cost: 70,  upkeep: 1, tech: 'wheel',      desc: '+2 produktion. Byen skal ligge ved en flod', river: true, gp: 'eng' },
   walls:      { name: 'Bymur',        cost: 70,  upkeep: 1, tech: 'masonry',    desc: 'Byens forsvar +50 %', gp: 'gen' },
   library:    { name: 'Bibliotek',    cost: 80,  upkeep: 1, tech: 'writing',    desc: '+50 % forskning', gp: 'sci' },
@@ -114,6 +117,7 @@ const TECHS = {
   riding:       { name: 'Ridning',           cost: 50,   pre: ['wheel'],                era: 0 },
   writing:      { name: 'Skrift',            cost: 50,   pre: ['pottery'],              era: 0 },
   masonry:      { name: 'Murværk',           cost: 50,   pre: ['mining'],               era: 0 },
+  monarchy:     { name: 'Monarki',           cost: 60,   pre: ['bronze', 'writing'],    era: 0 },
   iron:         { name: 'Jernbearbejdning',  cost: 85,   pre: ['bronze'],               era: 1 },
   math:         { name: 'Matematik',         cost: 85,   pre: ['writing', 'wheel'],     era: 1 },
   currency:     { name: 'Valuta',            cost: 85,   pre: ['bronze', 'writing'],    era: 1 },
@@ -127,10 +131,12 @@ const TECHS = {
   gunpowder:    { name: 'Krudt',             cost: 360,  pre: ['feudal', 'university'], era: 3 },
   gravity:      { name: 'Tyngdeloven',       cost: 420,  pre: ['university', 'banking'], era: 3 },
   metallurgy:   { name: 'Metallurgi',        cost: 420,  pre: ['gunpowder'],            era: 3 },
+  democracy:    { name: 'Demokrati',         cost: 430,  pre: ['banking', 'gravity'],   era: 3 },
   industry:     { name: 'Industrialisering', cost: 580,  pre: ['metallurgy', 'banking'], era: 4 },
   rifling:      { name: 'Riffelløb',         cost: 620,  pre: ['industry'],             era: 4 },
   electricity:  { name: 'Elektricitet',      cost: 680,  pre: ['gravity', 'industry'],  era: 4 },
   ballistics:   { name: 'Ballistik',         cost: 740,  pre: ['rifling'],              era: 4 },
+  communism:    { name: 'Kommunisme',        cost: 650,  pre: ['industry', 'philosophy'], era: 4 },
   combustion:   { name: 'Forbrændingsmotor', cost: 860,  pre: ['electricity', 'rifling'], era: 5 },
   computers:    { name: 'Computere',         cost: 960,  pre: ['electricity'],          era: 5 },
   rocketry:     { name: 'Raketter',          cost: 1150, pre: ['computers', 'combustion'], era: 5 },
@@ -141,7 +147,66 @@ const TECH_NOTES = {
   sailing: 'Landenheder kan sejle langs kysten',
   astronomy: 'Landenheder kan krydse åbent hav, +1 mad fra havet',
   industry: '+1 mad fra farme',
+  monarchy: 'Regeringsform: Monarki',
+  philosophy: 'Regeringsform: Republik',
+  democracy: 'Regeringsform: Demokrati',
+  communism: 'Regeringsform: Kommunisme',
+  metallurgy: 'Viser kul på kortet',
+  electricity: 'Viser olie på kortet',
 };
+
+// Regeringsformer. Tal er tillæg (0.1 = +10 %). freeUnits: gratis enheder pr. by ud over 2.
+const GOVS = {
+  despotism: { name: 'Despoti', tech: null, sci: -0.1, gold: -0.1, prod: 0, freeUnits: 1, garrison: 1,
+    pros: ['+1 gratis enhed pr. by', 'Garnisoner giver +1 ekstra tilfredshed'], cons: ['−10 % forskning og guld'] },
+  monarchy: { name: 'Monarki', tech: 'monarchy', sci: 0, gold: 0, prod: 0, freeUnits: 1, garrison: 1, capitalProd: 3, capitalCulture: 2,
+    pros: ['+3 produktion og +2 kultur i hovedstaden', '+1 gratis enhed pr. by', 'Garnisoner giver +1 ekstra tilfredshed'], cons: [] },
+  republic: { name: 'Republik', tech: 'philosophy', sci: 0.1, gold: 0.15, prod: 0, freeUnits: -1, cityTrade: 1, warWeary: 1,
+    pros: ['+1 handel i hver by', '+10 % forskning, +15 % guld'], cons: ['Krig mod stormagter: −1 tilfredshed i hver by', '1 gratis enhed færre pr. by'] },
+  democracy: { name: 'Demokrati', tech: 'democracy', sci: 0.2, gold: 0.25, prod: 0, freeUnits: -1, warWeary: 2, buy: -0.25, happy: 1,
+    pros: ['+20 % forskning, +25 % guld', 'Køb er 25 % billigere', '+1 tilfredshed i hver by'], cons: ['Krig mod stormagter: −2 tilfredshed i hver by', '1 gratis enhed færre pr. by'] },
+  communism: { name: 'Kommunisme', tech: 'communism', sci: 0, gold: -0.1, prod: 0.15, freeUnits: 2, noEmpire: true,
+    pros: ['+15 % produktion', 'Ingen utilfredshed fra rigets størrelse', '+2 gratis enheder pr. by'], cons: ['−10 % guld'] },
+  anarchy: { name: 'Anarki', tech: 'never', sci: -1, gold: -0.5, prod: -0.25, freeUnits: 0, hidden: true,
+    pros: [], cons: ['Ingen forskning, −50 % guld, −25 % produktion'] },
+};
+
+// Forfremmelser. cls: hvilke enhedstyper der kan få dem. req: kræver en anden forfremmelse først.
+const PROMOS = {
+  drill1:   { name: 'Øvelse I',     desc: '+15 % styrke', cls: ['melee', 'mounted', 'armor', 'ranged', 'siege', 'naval'] },
+  drill2:   { name: 'Øvelse II',    desc: '+15 % styrke', req: 'drill1', cls: ['melee', 'mounted', 'armor', 'ranged', 'siege', 'naval'] },
+  drill3:   { name: 'Øvelse III',   desc: '+15 % styrke', req: 'drill2', cls: ['melee', 'mounted', 'armor', 'ranged', 'siege', 'naval'] },
+  shock:    { name: 'Stormtropper', desc: '+25 % angreb på åbent land', cls: ['melee', 'mounted', 'armor'] },
+  woods:    { name: 'Skovkæmper',   desc: '+33 % i skov, jungle og bakker', cls: ['melee', 'ranged', 'mounted'] },
+  cover:    { name: 'Dækning',      desc: '+33 % forsvar mod afstandsangreb', cls: ['melee', 'ranged', 'siege', 'mounted', 'armor'] },
+  siege:    { name: 'Stormløb',     desc: '+33 % angreb mod byer', cls: ['melee', 'mounted', 'siege', 'armor', 'naval'] },
+  accuracy: { name: 'Præcision',    desc: '+25 % afstandsangreb', cls: ['ranged', 'siege', 'naval'], ranged: true },
+  range:    { name: 'Rækkevidde',   desc: '+1 felts afstand', req: 'accuracy', cls: ['ranged', 'siege', 'naval'], ranged: true },
+  mobility: { name: 'Mobilitet',    desc: '+1 bevægelse', cls: ['mounted', 'armor', 'naval'] },
+  medic:    { name: 'Felthospital', desc: 'Egne enheder på og ved feltet heler 10 ekstra', cls: ['melee', 'ranged'] },
+  march:    { name: 'March',        desc: 'Heler hver tur, også efter kamp', req: 'medic', cls: ['melee', 'ranged'] },
+};
+const XP_LEVELS = [10, 25, 45, 70, 100, 140, 190, 250];
+
+// Naturvidundere. Felterne giver ekstra udbytte og særlige fordele.
+const NATURAL = {
+  uluru:       { name: 'Uluru',                 on: ['desert', 'plains'],          f: 1, p: 0, t: 3, happy: 1, desc: '+3 handel, +1 tilfredshed i alle dine byer' },
+  canyon:      { name: 'Grand Canyon',          on: ['desert', 'plains', 'hills'], f: 0, p: 3, t: 2, def: 0.5, desc: '+3 produktion, +2 handel, +50 % forsvar' },
+  kilimanjaro: { name: 'Kilimanjaro',           on: ['hills'],                     f: 2, p: 2, t: 0, def: 0.25, sight: 2, desc: '+2 mad, +2 produktion, langt udsyn' },
+  victoria:    { name: 'Victoriafaldet',        on: ['grass', 'plains', 'forest', 'jungle'], river: true, f: 2, p: 0, t: 3, happy: 1, desc: '+3 handel, +1 tilfredshed i alle dine byer' },
+  reef:        { name: 'Det Store Barriererev', on: ['coast'],                     f: 3, p: 0, t: 2, desc: '+3 mad, +2 handel' },
+  fountain:    { name: 'Ungdomskilden',         on: ['grass', 'plains'],           f: 2, p: 0, t: 1, heal: true, desc: 'Enheder her heler helt hver tur' },
+  fuji:        { name: 'Fuji',                  on: ['hills'],                     f: 0, p: 3, t: 1, culture: 3, desc: '+3 produktion, +3 kultur til byen' },
+};
+
+// Holdninger mellem folk
+const ATTITUDES = [
+  { min: 30, name: 'Venlig', cls: 'good' },
+  { min: 10, name: 'Imødekommende', cls: 'good' },
+  { min: -10, name: 'Neutral', cls: 'neutral' },
+  { min: -30, name: 'Mistænksom', cls: 'warn' },
+  { min: -999, name: 'Fjendtlig', cls: 'bad' },
+];
 
 const ERAS = ['Oldtiden', 'Klassisk tid', 'Middelalderen', 'Renæssancen', 'Industritiden', 'Moderne tid'];
 
@@ -190,9 +255,9 @@ const DIFFICULTY = {
 };
 
 const MAPSIZES = {
-  small:  { name: 'Lille',  w: 44, h: 28, minors: 3 },
-  medium: { name: 'Mellem', w: 60, h: 38, minors: 5 },
-  large:  { name: 'Stor',   w: 78, h: 48, minors: 7 },
+  small:  { name: 'Lille',  w: 44, h: 28, minors: 3, natural: 3 },
+  medium: { name: 'Mellem', w: 60, h: 38, minors: 5, natural: 5 },
+  large:  { name: 'Stor',   w: 78, h: 48, minors: 7, natural: 7 },
 };
 
 const MAPTYPES = {

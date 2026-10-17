@@ -45,6 +45,28 @@ const ART = (() => {
     camp: [['M8 39 L24 13 L40 39 Z', 'M24 39 L20 30 H28 Z', 'M17 6 L24 13 L31 6'], '#E46C60'],
     lock: [['M16 22 V16 Q16 8 24 8 Q32 8 32 16 V22', 'M11 22 H37 V40 H11 Z'], '#ECE6D8'],
     work: [['M12 40 L30 22', 'M26 12 L36 22 L32 26 L22 16 Z'], '#ECE6D8'],
+    // regeringsformer
+    gov_despotism: [['M14 42 V20 H34 V42', 'M10 20 H38', 'M16 20 V9 L24 4 L32 9 V20', 'M14 31 H34'], '#EAD097'],
+    gov_monarchy: [['M8 34 L10 14 L18 24 L24 10 L30 24 L38 14 L40 34 Z', 'M8 40 H40'], '#EAD097'],
+    gov_republic: [['M24 41 Q12 35 10 20', 'M24 41 Q36 35 38 20', 'M12 26 Q7 25 8 20', 'M15 33 Q9 34 9 29', 'M36 26 Q41 25 40 20', 'M33 33 Q39 34 39 29', 'M10 20 Q9 14 13 12', 'M38 20 Q39 14 35 12'], '#EAD097'],
+    gov_democracy: [['M10 22 H38 V42 H10 Z', 'M18 22 V8 H30 V22', 'M22 14 H26', 'M16 32 H32'], '#EAD097'],
+    gov_communism: [[circ(24, 24, 9), circ(24, 24, 3), 'M24 6 V12', 'M24 36 V42', 'M6 24 H12', 'M36 24 H42', 'M11 11 L15 15', 'M33 33 L37 37', 'M37 11 L33 15', 'M15 33 L11 37'], '#EAD097'],
+    gov_anarchy: [['M24 6 L20 20 L28 22 L22 42', 'M10 14 L16 18', 'M38 14 L32 18', 'M10 34 L16 30', 'M38 34 L32 30'], '#E46C60'],
+    // diplomati
+    dip_ob: [['M10 42 V17 Q24 4 38 17 V42', 'M16 42 V22 L21 26 V42', 'M32 42 V22 L27 26 V42'], '#ECE6D8'],
+    dip_pact: [['M5 11 H21 V21 Q21 31 13 35 Q5 31 5 21 Z', 'M27 11 H43 V21 Q43 31 35 35 Q27 31 27 21 Z', 'M13 41 H35'], '#7CC47F'],
+    dip_war: [['M10 38 L34 14', 'M29 10 H38 V19', 'M38 38 L14 14', 'M19 10 H10 V19'], '#E46C60'],
+    dip_gift: [['M8 20 H40 V28 H8 Z', 'M11 28 V42 H37 V28', 'M24 20 V42', 'M24 20 Q14 7 11 13 Q10 20 24 20', 'M24 20 Q34 7 37 13 Q38 20 24 20'], '#E8C34C'],
+    // verden
+    ruin: [['M8 42 H40', 'M14 42 V20', 'M11 20 H17', 'M24 42 V30 L27 25 L21 23', 'M34 42 V14', 'M31 14 H37', 'M17 15 L29 10'], '#EAD097'],
+    promo: [['M13 30 L24 21 L35 30', 'M13 39 L24 30 L35 39', 'M13 21 L24 12 L35 21'], '#EAD097'],
+    nat_uluru: [['M5 35 Q9 23 18 21 Q30 17 38 23 Q43 27 43 35 Z', 'M5 40 H43'], '#E2895A'],
+    nat_canyon: [['M4 17 H16 L20 29 H28 L32 17 H44', 'M20 29 L22 40 H26 L28 29', 'M4 23 H12', 'M36 23 H44'], '#E2A15A'],
+    nat_kilimanjaro: [['M4 40 L20 12 L28 20 L32 16 L44 40 Z', 'M15 21 L20 12 L25 17 L21 21 Z'], '#ECE6D8'],
+    nat_victoria: [['M8 10 H40', 'M14 10 V35', 'M22 10 V39', 'M30 10 V35', 'M38 10 V30', 'M8 41 Q24 35 40 41'], '#7FB3D1'],
+    nat_reef: [['M8 40 Q10 30 16 32 Q16 22 22 26 Q24 14 28 24 Q34 18 34 30 Q40 28 40 40 Z'], '#E46C9A'],
+    nat_fountain: [['M24 7 Q19 17 24 22 Q29 17 24 7 Z', 'M10 30 H38 L34 40 H14 Z', 'M16 26 Q24 19 32 26'], '#7CC4B0'],
+    nat_fuji: [['M4 40 L18 16 H30 L44 40 Z', 'M18 16 L22 22 L26 18 L30 22'], '#ECE6D8'],
   };
   const UNIT_DOTS = {
     horseman: [[27, 17, 1.2]],
@@ -67,6 +89,8 @@ const ART = (() => {
     furs: ['M12 13 Q24 7 36 13 L33 22 L39 35 L30 32 L24 41 L18 32 L9 35 L15 22 Z'],
     whales: ['M5 29 Q12 17 29 22 Q35 24 38 20 L44 15 L42 25 L38 27 Q34 37 18 35 Q8 35 5 29 Z', 'M19 17 Q19 11 15 8', 'M19 17 Q19 11 23 8'],
     silk: ['M13 9 H35', 'M13 39 H35', 'M17 9 V39', 'M31 9 V39', 'M17 17 L31 23', 'M17 25 L31 31'],
+    coal: ['M10 32 L16 22 L26 24 L30 32 Z', 'M24 34 L30 26 L38 30 L36 38 Z', 'M12 38 L22 35'],
+    oil: ['M24 6 Q36 22 36 30 Q36 41 24 41 Q12 41 12 30 Q12 22 24 6 Z', 'M18 30 Q18 35 23 36'],
   };
 
   // Terrændekoration i felt-koordinater (104×120, midte 52,60).
@@ -182,6 +206,33 @@ const ART = (() => {
       const set = c.pop >= 9 ? CITY_ART.city : c.pop >= 4 ? CITY_ART.town : CITY_ART.village;
       strokeSet(ctx, set, cv.minor ? '#1B1408' : '#ECE6D8', 2.8);
       if (c.capital && !cv.minor) { ctx.fillStyle = '#EAD097'; ctx.fill(P(STAR)); }
+      ctx.restore();
+    },
+    ruin(ctx, cx, cy) {
+      ctx.fillStyle = 'rgba(15,19,26,0.82)'; ctx.beginPath(); ctx.arc(cx, cy, S * 0.38, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#C9A45C'; ctx.lineWidth = 1.6; ctx.stroke();
+      this.misc(ctx, 'ruin', cx, cy, S * 0.56);
+    },
+    natural(ctx, key, cx, cy) {
+      ctx.fillStyle = 'rgba(15,19,26,0.85)'; ctx.beginPath(); ctx.arc(cx, cy, S * 0.46, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(234,208,151,0.35)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, S * 0.52, 0, 7); ctx.stroke();
+      ctx.strokeStyle = '#EAD097'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(cx, cy, S * 0.46, 0, 7); ctx.stroke();
+      this.misc(ctx, 'nat_' + key, cx, cy, S * 0.62);
+    },
+    promoMarks(ctx, cx, cy, n, pending) {
+      if (!n && !pending) return;
+      ctx.save();
+      ctx.strokeStyle = '#EAD097'; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (let k = 0; k < Math.min(3, n); k++) {
+        const y = cy - k * 3.6;
+        ctx.beginPath(); ctx.moveTo(cx - 4, y + 2); ctx.lineTo(cx, y - 1); ctx.lineTo(cx + 4, y + 2); ctx.stroke();
+      }
+      if (pending) {
+        ctx.fillStyle = '#EAD097'; ctx.beginPath(); ctx.arc(cx, cy - Math.min(3, n) * 3.6 - 3, 3.2, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#1B1408'; ctx.lineWidth = 1.3;
+        const py = cy - Math.min(3, n) * 3.6 - 3;
+        ctx.beginPath(); ctx.moveTo(cx - 1.8, py); ctx.lineTo(cx + 1.8, py); ctx.moveTo(cx, py - 1.8); ctx.lineTo(cx, py + 1.8); ctx.stroke();
+      }
       ctx.restore();
     },
     camp(ctx, cx, cy) {

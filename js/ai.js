@@ -18,7 +18,7 @@ function aiChooseResearch(cv) {
 }
 
 function landMilTypes(cv) {
-  return Object.keys(UNITS).filter(k => { const U = UNITS[k]; return hasTech(cv, U.tech) && !unitObsolete(cv, k) && U.str > 0 && k !== 'scout' && !U.domain && !U.gp; });
+  return Object.keys(UNITS).filter(k => { const U = UNITS[k]; return hasTech(cv, U.tech) && !unitObsolete(cv, k) && U.str > 0 && k !== 'scout' && !U.domain && !U.gp && hasStratFor(cv.id, k); });
 }
 function bestUnitFor(cv, role) {
   const avail = landMilTypes(cv);
@@ -36,7 +36,7 @@ function bestUnitFor(cv, role) {
   return byCls(['melee', 'armor']) || avail[0];
 }
 function bestShip(cv) {
-  const s = Object.keys(UNITS).filter(k => UNITS[k].domain === 'sea' && hasTech(cv, UNITS[k].tech) && !unitObsolete(cv, k));
+  const s = Object.keys(UNITS).filter(k => UNITS[k].domain === 'sea' && hasTech(cv, UNITS[k].tech) && !unitObsolete(cv, k) && hasStratFor(cv.id, k));
   s.sort((a, b) => Math.max(UNITS[b].str, UNITS[b].ranged || 0) - Math.max(UNITS[a].str, UNITS[a].ranged || 0));
   return s[0] || null;
 }
@@ -107,7 +107,8 @@ function aiAcceptPeace(cv, other) {
   if (cv.minor) return !cv.allyWars.includes(other) && since >= 5;
   if (since < 6) return false;
   const ratio = milPower(cv.id) / (milPower(other) + 1);
-  return ratio < 1.1 || Math.random() < 0.35;
+  const att = isMajor(civ(other)) ? attitude(cv.id, other).score : 0;
+  return ratio < 1.1 || Math.random() < 0.35 + Math.max(0, att + 20) / 100;
 }
 
 function aiDiplomacy(cv) {
@@ -126,8 +127,10 @@ function aiDiplomacy(cv) {
     if (!atWar(cv.id, o.id)) {
       if (G.turn < 35 || G.turn - G.warSince[cv.id][o.id] < 20) continue;
       if (closestCityDist(cv.id, o.id) > 18) continue;
-      const p = 0.02 * cv.aggression * (o.human ? DIFFICULTY[G.difficulty].ai : 1);
-      if (ratio > 1.3 && Math.random() < p) declareWar(cv.id, o.id);
+      const att = attitude(cv.id, o.id).score;
+      if (hasPact(cv.id, o.id) || att >= 30) continue;
+      const p = 0.02 * cv.aggression * (o.human ? DIFFICULTY[G.difficulty].ai : 1) * clamp(1 - att / 40, 0.25, 2.5);
+      if (ratio > (att < -30 ? 1.1 : 1.3) && Math.random() < p) declareWar(cv.id, o.id);
     } else {
       const since = G.turn - G.warSince[cv.id][o.id];
       if (since < 12) continue;
@@ -152,7 +155,10 @@ function aiDiplomacy(cv) {
   for (const o of majors()) {
     if (o.id <= cv.id || o.human || !canTradeTech(cv.id, o.id) || Math.random() > 0.015) continue;
     const a = techsFor(cv, o), b = techsFor(o, cv);
-    if (a.length && b.length) { const ka = pick(a), kb = pick(b); o.techs.push(ka); cv.techs.push(kb); if (o.research === ka) o.research = null; if (cv.research === kb) cv.research = null; }
+    if (a.length && b.length && attitude(cv.id, o.id).score >= 0 && attitude(o.id, cv.id).score >= 0) {
+      const ka = pick(a), kb = pick(b); o.techs.push(ka); cv.techs.push(kb); if (o.research === ka) o.research = null; if (cv.research === kb) cv.research = null;
+      remember(cv.id, o.id, 'trade', 6, 'Handlede med os', 30); remember(o.id, cv.id, 'trade', 6, 'Handlede med os', 30);
+    }
   }
   // tilbud til spilleren
   if (canTradeTech(cv.id, h.id) && Math.random() < 0.02 && !G.offers.some(f => f.from === cv.id)) {
@@ -218,6 +224,8 @@ function aiPlay(cv) {
   if (!cv.ai) cv.ai = {};
   if (cv.minor) { aiPlayMinor(cv); return; }
   aiDiplomacy(cv);
+  aiRelations(cv);
+  if (G.turn % 5 === cv.id % 5) aiGovernment(cv);
   planArmy(cv);
   if (G.turn % 10 === cv.id % 10 || !cv.ai.roads) planRoads(cv);
   const reserved = new Set();
@@ -301,7 +309,7 @@ function siteValid(j, cid) {
   if (!landPassable(j)) return false;
   const t = G.tiles[j];
   if (t.owner >= 0 && t.owner !== cid) return false;
-  if (t.t === 'snow' || campAt(j)) return false;
+  if (t.t === 'snow' || campAt(j) || t.nat) return false;
   const [x, y] = xy(j);
   if (G.cities.some(c => dist(c.x, c.y, x, y) < 4)) return false;
   if (G.units.some(u => u.civ !== cid && u.x === x && u.y === y)) return false;
@@ -407,7 +415,7 @@ function aiGreatPerson(u, cv) {
 
 function tryAttacks(u) {
   const T = UNITS[u.type];
-  const range = T.ranged ? T.range : 1;
+  const range = T.ranged ? unitRange(u) : 1;
   let best = null, bs = -Infinity;
   for (const j of tilesInRadius(u.x, u.y, range)) {
     if (!canAttack(u, j)) continue;
@@ -447,6 +455,17 @@ function nearestCamp(u, maxD) {
   return best;
 }
 
+function nearestRuin(u, maxD) {
+  let best = null, bd = maxD + 1;
+  for (let i = 0; i < G.tiles.length; i++) {
+    if (!G.tiles[i].ruin) continue;
+    const [x, y] = xy(i); const d = dist(x, y, u.x, u.y);
+    if (d < bd && !G.units.some(v => v !== u && v.civ === u.civ && v.target === i)) { bd = d; best = i; }
+  }
+  if (best != null) u.target = best;
+  return best;
+}
+
 function aiMilitary(u, cv, isGarrison) {
   if (u.moves <= 0) return;
   const T = UNITS[u.type];
@@ -482,6 +501,11 @@ function aiMilitary(u, cv, isGarrison) {
       if (G.units.includes(u)) tryAttacks(u);
       return;
     }
+  }
+  // udforsk ruiner
+  if (!enemies.some(e => isMajor(civ(e))) || u.type === 'scout') {
+    const ruin = nearestRuin(u, u.type === 'scout' ? 14 : 5);
+    if (ruin != null) { moveToward(u, ruin, 0); return; }
   }
   // ryd barbarlejre i nærheden
   const camp = nearestCamp(u, 8);

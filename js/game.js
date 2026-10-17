@@ -175,11 +175,12 @@ function generateTerrain(w, h, seed, mapType) {
   return { tiles, comp, sizes };
 }
 
-function tileBaseYield(tt) {
+function tileBaseYield(tt, cv) {
   const T = TERRAIN[tt.t];
   let f = T.f, p = T.p, tr = T.t;
-  if (tt.res) { f += RESOURCES[tt.res].f; p += RESOURCES[tt.res].p; tr += RESOURCES[tt.res].t; }
+  if (tt.res && resVisible(tt.res, cv)) { f += RESOURCES[tt.res].f; p += RESOURCES[tt.res].p; tr += RESOURCES[tt.res].t; }
   if (tt.river && !T.water) tr += 1;
+  if (tt.nat) { const N = NATURAL[tt.nat]; f += N.f; p += N.p; tr += N.t; }
   return { f, p, t: tr };
 }
 
@@ -195,6 +196,8 @@ function siteScore(i, tiles) {
     if (tt.t === 'ocean') yy.f -= 0.5;
     s += yy.f * 1.4 + yy.p * 1.0 + yy.t * 0.5;
     if (tt.res && RESOURCES[tt.res].lux) s += 2;
+    if (tt.res && RESOURCES[tt.res].strat && !RESOURCES[tt.res].reveal) s += 1.5;
+    if (tt.nat && j !== i) s += 4;
     if (tt.t === 'coast' && distI(i, j) === 1) coast = true;
   }
   if (coast) s += 2;
@@ -251,6 +254,7 @@ function newGame(opts) {
     if (a === G.barb || b === G.barb) G.war[a][b] = true;
   }
   for (const m of G.civs) if (m.minor) m.inf = new Array(n).fill(0);
+  ensureRealmState();
 
   // startpositioner
   const nStart = majorKeys.length + minorDefs.length;
@@ -281,6 +285,8 @@ function newGame(opts) {
     if (best == null) break;
     starts.push(best);
   }
+  ensureStartResources(starts, majorKeys.length);
+  placeRuinsAndWonders(starts);
   G.civs.forEach((cv, k) => {
     if (cv.barb || starts[k] == null) return;
     const [x, y] = xy(starts[k]);
@@ -353,9 +359,10 @@ function recordAnim(e) {
 
 // ---------- Enheder ----------
 function createUnit(cid, type, x, y, vet) {
-  const u = { id: G.nextId++, type, civ: cid, x: wrapX(x), y, hp: 100, moves: UNITS[type].moves, fort: false, vet: !!vet,
-    path: null, work: null, sleep: false, acted: false, auto: false };
+  const u = { id: G.nextId++, type, civ: cid, x: wrapX(x), y, hp: 100, moves: UNITS[type].moves, fort: false, vet: false,
+    path: null, work: null, sleep: false, acted: false, auto: false, xp: vet ? 15 : 0, promos: [] };
   G.units.push(u);
+  if (vet && !civ(cid).human) aiPromote(u);
   return u;
 }
 function killUnit(u) { G.units = G.units.filter(v => v !== u); if (typeof UI !== 'undefined' && UI.sel && UI.sel.unit === u.id) UI.sel = null; }
@@ -392,6 +399,9 @@ function canEnter(u, i) {
   const c = cityAt(i);
   if (c && c.civ !== u.civ) return false;
   if (!isMil(u) && campAt(i)) return false;
+  const own = G.tiles[i].owner;
+  if (own >= 0 && own !== u.civ && !atWar(u.civ, own) && isMajor(civ(own)) && isMajor(civ(u.civ)) && !hasOB(u.civ, own)
+    && u.type !== 'caravan' && u.type !== 'gp_mer' && G.tiles[idx(u.x, u.y)].owner !== own) return false;
   for (const v of unitsAt(i)) {
     if (v.civ === u.civ) continue;
     if (atWar(u.civ, v.civ) && !isMil(v) && isMil(u) && !isSea(u) && !isWater(i)) continue; // fang civile
@@ -455,7 +465,7 @@ function findPath(u, target, opts = {}) {
 }
 
 function maxMoves(u) {
-  return UNITS[u.type].moves;
+  return UNITS[u.type].moves + (hasPromo(u, 'mobility') ? 1 : 0);
 }
 
 // Antal ture for at gå en sti
@@ -522,7 +532,9 @@ function stepUnit(u, to) {
     G.camps = G.camps.filter(k => k !== camp);
     civ(u.civ).gold += 25;
     notify(u.civ, 'Du har ødelagt en barbarlejr og fundet 25 guld.', to, 'good');
+    gainXp(u, 5);
   }
+  if (G.tiles[to].ruin && !isSea(u) && isMajor(civ(u.civ))) claimRuin(u, to);
   if (u.civ === G.human) updateVisibility();
   else meetCheck(u.civ, to);
 }
@@ -548,7 +560,7 @@ function followPath(u) {
 function upgradeTarget(u) {
   const cv = civ(u.civ);
   let best = null, k = UNITS[u.type].up;
-  while (k && hasTech(cv, UNITS[k].tech)) { best = k; k = UNITS[k].up; }
+  while (k && hasTech(cv, UNITS[k].tech)) { if (hasStratFor(u.civ, k, u)) best = k; k = UNITS[k].up; }
   return best;
 }
 function upgradeCost(u, k) { return Math.max(20, Math.round((UNITS[k].cost - UNITS[u.type].cost) * 2 + 20)); }
@@ -575,7 +587,7 @@ function riverCrossing(a, b) {
   if (!tb.river || isWater(b) || isWater(a)) return false;
   return !(ta.river && (ta.riverTo === b || tb.riverTo === a));
 }
-function unitStrength(u, role, opp, tileI) {
+function unitStrength(u, role, opp, tileI, ctx) {
   const T = UNITS[u.type];
   let s;
   if (role === 'def' && embarked(u)) s = 3 + 3 * eraOf(civ(u.civ));
@@ -586,9 +598,12 @@ function unitStrength(u, role, opp, tileI) {
   if (role === 'def' && !embarked(u) && !isSea(u)) {
     const tt = G.tiles[tileI];
     if (T.cls !== 'armor' && T.cls !== 'mounted') m += TERRAIN[tt.t].def;
+    if (tt.nat && NATURAL[tt.nat].def) m += NATURAL[tt.nat].def;
     if (u.fort) m += 0.25;
   }
   if (opp && opp.type && T.antiMounted && UNITS[opp.type].cls === 'mounted') m += 1;
+  m += promoBonus(u, role, ctx || { tile: tileI });
+  if (stratShort(u)) m -= 0.25;
   s *= m;
   s *= 0.5 + 0.5 * u.hp / 100;
   return Math.max(0.5, s);
@@ -596,7 +611,8 @@ function unitStrength(u, role, opp, tileI) {
 function bestDefender(list, attacker) {
   let best = null, bs = -1;
   for (const v of list) {
-    const s = unitStrength(v, 'def', attacker, idx(v.x, v.y));
+    const vi = idx(v.x, v.y);
+    const s = unitStrength(v, 'def', attacker, vi, { tile: vi, vsRanged: !!(attacker && UNITS[attacker.type].ranged) });
     if (s > bs) { bs = s; best = v; }
   }
   return best;
@@ -623,16 +639,19 @@ function combatPreview(u, i) {
   const T = UNITS[u.type];
   const ranged = !!T.ranged;
   const from = idx(u.x, u.y);
-  let A = unitStrength(u, ranged ? 'ranged' : 'atk', tg.unit, from);
+  let A = unitStrength(u, ranged ? 'ranged' : 'atk', tg.unit, from, { tile: i, vsCity: !!tg.city });
   let D;
   const notes = [];
   if (tg.city) {
     D = cityStrength(tg.city);
     if (T.cls === 'siege') { A *= 1.5; notes.push('Belejring +50 %'); }
     if (T.cls === 'mounted') { A *= 0.67; notes.push('Rytteri mod by −33 %'); }
-  } else D = unitStrength(tg.unit, 'def', u, i);
+  } else D = unitStrength(tg.unit, 'def', u, i, { tile: i, vsRanged: ranged });
   if (!ranged && riverCrossing(from, i)) { A *= 0.75; notes.push('Angreb over flod −25 %'); }
   if (generalNear(u)) notes.push('General +25 %');
+  const pb = Math.round(promoBonus(u, ranged ? 'ranged' : 'atk', { tile: i, vsCity: !!tg.city }) * 100);
+  if (pb) notes.push(`Forfremmelser +${pb} %`);
+  if (stratShort(u)) notes.push(`Mangler ${RESOURCES[UNITS[u.type].needs].name.toLowerCase()} −25 %`);
   if (tg.unit && embarked(tg.unit)) notes.push('Målet er indskibet');
   const r = A / D;
   return { A, D, ranged, city: tg.city, unit: tg.unit, notes, expD: Math.round(30 * Math.pow(r, 1.15)), expA: ranged ? 0 : Math.round(30 * Math.pow(1 / r, 1.15)) };
@@ -646,7 +665,7 @@ function canAttack(u, i) {
   if (!tg) return false;
   const [ix, iy] = xy(i);
   const d = dist(u.x, u.y, ix, iy);
-  if (T.ranged) return d <= T.range && !tg.civilians;
+  if (T.ranged) return d <= unitRange(u) && !tg.civilians;
   if (d !== 1) return false;
   if (tg.city) return isSea(u) ? cityCoastal(tg.city) : true;
   return isSea(u) ? isWater(i) : !isWater(i);
@@ -686,6 +705,7 @@ function attack(u, i) {
       notify(c.civ, `${c.name} slog et angreb fra en ${atkName} tilbage.`, i, 'good');
       return;
     }
+    gainXp(u, pv.ranged ? 2 : 3);
     if (!pv.ranged && c.hp <= 0) captureCity(u, c);
     else {
       notify(u.civ, `Angreb på ${c.name}: byen mistede ${dD} liv${dA ? `, din enhed mistede ${dA}` : ''}.`, i);
@@ -701,7 +721,6 @@ function attack(u, i) {
     killUnit(d);
     notify(u.civ, `Din ${T.name.toLowerCase()} besejrede en ${defName}.`, i, 'good');
     notify(d.civ, `Din ${UNITS[d.type].name.toLowerCase()} blev dræbt af en ${atkName}.`, i, 'bad');
-    if (Math.random() < 0.35) u.vet = true;
     addGreatPoints(civ(u.civ), 'gen', 3);
   } else {
     notify(u.civ, `Kamp: fjenden mistede ${dD} liv${dA ? `, din enhed mistede ${dA}` : ''}.`, i);
@@ -711,10 +730,12 @@ function attack(u, i) {
     killUnit(u);
     notify(u.civ, `Din ${T.name.toLowerCase()} døde i kampen.`, i, 'bad');
     notify(d.civ, `Din ${UNITS[d.type].name.toLowerCase()} vandt en forsvarskamp.`, i, 'good');
-    if (d.hp > 0 && Math.random() < 0.35) d.vet = true;
+    gainXp(d, 5, civ(u.civ).barb);
     addGreatPoints(civ(d.civ), 'gen', 3);
     return;
   }
+  gainXp(u, pv.ranged ? 3 : (d.hp <= 0 ? 6 : 4), civ(d.civ).barb);
+  if (d.hp > 0) gainXp(d, 3, civ(u.civ).barb);
   // nærkamp rykker frem hvis feltet er tomt
   if (!pv.ranged && d.hp <= 0 && !unitsAt(i).some(v => v.civ !== u.civ) && !cityAt(i) && canTraverse(u, i)) {
     u.moves = 1; stepUnit(u, i); u.moves = 0;
@@ -743,6 +764,7 @@ function captureCity(u, c) {
   for (const t of G.tiles) if (t.city === c.id) t.owner = u.civ;
   notify(u.civ, `Du har erobret ${c.name}!`, i, 'good');
   notify(old, `${c.name} er faldet til ${civ(u.civ).name}!`, i, 'bad');
+  remember(old, u.civ, 'city', -25, 'Erobrede vores byer', 80);
   if (!civ(u.civ).human) aiChooseBuild(c);
   const oc = civCities(old);
   if (oc.length && !oc.some(x => x.capital)) oc.sort((a, b) => b.pop - a.pop)[0].capital = true;
@@ -777,7 +799,7 @@ function cityStrikes(cid) {
     if (!best) continue;
     c.struckTurn = G.turn;
     const A = cityStrength(c) * 0.75;
-    const D = unitStrength(best, 'def', null, idx(best.x, best.y));
+    const D = unitStrength(best, 'def', null, idx(best.x, best.y), { tile: idx(best.x, best.y), vsRanged: true });
     const d = dmgFor(A / D);
     best.hp -= d;
     const bi = idx(best.x, best.y);
@@ -811,7 +833,7 @@ function canFoundCity(u) {
   if (!landPassable(i)) return false;
   const t = G.tiles[i];
   if (t.owner >= 0 && t.owner !== u.civ) return false;
-  if (campAt(i)) return false;
+  if (campAt(i) || t.nat) return false;
   return !G.cities.some(c => dist(c.x, c.y, u.x, u.y) < 3);
 }
 
@@ -828,6 +850,7 @@ function foundCity(u) {
   G.tiles[i].road = true;
   if (G.tiles[i].t === 'forest' || G.tiles[i].t === 'jungle') G.tiles[i].t = 'plains';
   cv.everCity = true;
+  for (const o of majors()) if (o.id !== cv.id && G.cities.some(x => x.civ === o.id && dist(x.x, x.y, c.x, c.y) <= 5)) remember(o.id, cv.id, 'settle', -6, 'Bosatte sig tæt på os', 24);
   assignAllTiles();
   if (cv.human) { updateVisibility(); notify(cv.id, `${c.name} er grundlagt.`, i, 'good'); if (typeof SFX !== 'undefined') SFX.play('city'); }
   else aiChooseBuild(c);
@@ -838,7 +861,7 @@ function claimTile(i, c) { G.tiles[i].owner = c.civ; G.tiles[i].city = c.id; }
 
 function tileYield(i, c) {
   const t = G.tiles[i]; const T = TERRAIN[t.t];
-  const b = tileBaseYield(t);
+  const b = tileBaseYield(t, c ? civ(c.civ) : null);
   let f = b.f, p = b.p, tr = b.t;
   if (t.imp === 'farm') f += 1;
   if (t.imp === 'farm' && c && hasTech(civ(c.civ), 'industry')) f += 1;
@@ -870,7 +893,8 @@ function cityHappiness(c) {
   const diff = DIFFICULTY[G.difficulty];
   let base = cv.human ? diff.content : cv.minor ? 6 : 4 + (diff.ai > 1 ? 1 : 0);
   const n = civCities(c.civ).length;
-  const empire = cv.minor ? 0 : Math.floor(Math.max(0, n - 3) / 3);
+  const gv = gov(cv);
+  const empire = cv.minor || gv.noEmpire ? 0 : Math.floor(Math.max(0, n - 3) / 3);
   const src = [[`Grundniveau`, base]];
   if (empire) src.push(['Rigets størrelse', -empire]);
   const era = eraOf(cv);
@@ -880,7 +904,11 @@ function cityHappiness(c) {
   const lux = civLuxuries(c.civ).length;
   if (lux) src.push([`Luksusvarer (${lux})`, lux]);
   if (civHasWonder(c.civ, 'gardens')) src.push(['De Hængende Haver', 1]);
-  if (G.units.some(u => u.civ === c.civ && u.x === c.x && u.y === c.y && isMil(u) && !isSea(u))) src.push(['Garnison', 1]);
+  if (G.units.some(u => u.civ === c.civ && u.x === c.x && u.y === c.y && isMil(u) && !isSea(u))) src.push(['Garnison', 1 + (gv.garrison || 0)]);
+  if (gv.happy) src.push([gv.name, gv.happy]);
+  if (gv.warWeary && warWithMajor(c.civ)) src.push(['Krigstræthed', -gv.warWeary]);
+  const nh = civNatHappy(c.civ).length;
+  if (nh) src.push([`Naturvidundere (${nh})`, nh]);
   const content = Math.max(0, src.reduce((a, s) => a + s[1], 0));
   const unhappy = Math.max(0, c.pop - content);
   return { content, unhappy, src };
@@ -896,6 +924,7 @@ const FOCUS = {
 
 function assignAllTiles() {
   computeLux();
+  computeStrat();
   const taken = new Set();
   const enemyOn = new Set();
   for (const u of G.units) enemyOn.add(idx(u.x, u.y) + ':' + u.civ);
@@ -1002,33 +1031,39 @@ function cityYields(c) {
   p += specialists; t += specialists;
   t += workers;
   if (c.capital) { t += 2; p += 1; f += minorFoodBonus(c.civ); }
+  const gv = gov(cv);
+  if (c.capital && gv.capitalProd) p += gv.capitalProd;
+  if (gv.cityTrade) t += gv.cityTrade;
   const routes = routeTrade(c);
   t += routes;
   if (c.blds.includes('granary')) f += 2;
   if (c.blds.includes('watermill')) p += 2;
-  let pm = 1;
+  let pm = 1 + (gv.prod || 0);
   if (c.blds.includes('workshop')) pm += 0.25;
   if (c.blds.includes('factory')) pm += 0.5;
   if (c.blds.includes('powerplant')) pm += 0.5;
   if (G.wonders.pyramids === c.id) pm += 0.25;
   if (civHasWonder(c.civ, 'hoover')) pm += 0.25;
-  let sm = 1;
+  let sm = 1 + (gv.sci || 0);
   if (c.blds.includes('library')) sm += 0.5;
   if (c.blds.includes('university')) sm += 0.5;
   if (c.blds.includes('lab')) sm += 0.75;
   if (G.wonders.newton === c.id) sm += 1;
-  let gm = 1;
+  let gm = 1 + (gv.gold || 0);
   if (c.blds.includes('market')) gm += 0.5;
   if (c.blds.includes('bank')) gm += 0.5;
   const ai = cv.human ? 1 : DIFFICULTY[G.difficulty].ai;
   const prod = Math.round(p * pm * ai);
   let sci = t * cv.sciRate * sm * ai;
   if (G.wonders.library === c.id) sci += 8;
+  if (cv.gov === 'anarchy') sci = 0;
   const gold = t * (1 - cv.sciRate) * gm * ai;
   const foodNet = f - c.pop * 2;
   const cap = c.blds.includes('aqueduct') ? 30 : 8;
   let culture = 1 + (c.blds.includes('temple') ? 3 : 0) + (c.capital ? 1 : 0);
   culture += Object.values(G.wonders).filter(id => id === c.id).length * 2;
+  if (c.capital && gv.capitalCulture) culture += gv.capitalCulture;
+  for (const j of cityWorkable(c)) { const k = G.tiles[j].nat; if (k && NATURAL[k].culture) culture += NATURAL[k].culture; }
   return { f, p: prod, t, routes, sci: Math.round(sci * 10) / 10, gold: Math.round(gold * 10) / 10, foodNet, need: growthNeed(c.pop), cap, culture, unhappy: c.unhappy || 0 };
 }
 function growthNeed(pop) { return Math.floor(15 + 7 * (pop - 1) + Math.pow(pop - 1, 1.7)); }
@@ -1058,7 +1093,10 @@ function buildOptions(c) {
     if (U.gp || !hasTech(cv, U.tech) || unitObsolete(cv, k)) continue;
     if (U.domain === 'sea' && !coastal) continue;
     if (cv.minor && (k === 'settler' || k === 'caravan')) continue;
-    out.push({ kind: 'unit', key: k, ok: k !== 'settler' || c.pop >= 2 });
+    if (U.needs && !resVisible(U.needs, cv)) continue;
+    const okRes = hasStratFor(c.civ, k);
+    out.push({ kind: 'unit', key: k, ok: (k !== 'settler' || c.pop >= 2) && okRes,
+      reason: !okRes ? `Kræver ${RESOURCES[U.needs].name.toLowerCase()} (${Math.max(0, stratAvail(c.civ, U.needs))} ledig af ${stratSupply(c.civ, U.needs)})` : k === 'settler' && c.pop < 2 ? 'Kræver 2 indbyggere' : null });
   }
   for (const k in BUILDINGS) {
     const B = BUILDINGS[k];
@@ -1076,7 +1114,7 @@ function buyCost(c) {
   if (!c.build || c.build.kind === 'proj') return Infinity;
   const left = Math.max(0, buildCost(c.build) - c.prod);
   const k = c.build.kind === 'wonder' ? 4 : 2;
-  return Math.ceil(left * k + Math.pow(left, 1.15) * 0.3) + 10;
+  return Math.ceil((left * k + Math.pow(left, 1.15) * 0.3 + 10) * (1 + (gov(civ(c.civ)).buy || 0)));
 }
 
 function processCity(c) {
@@ -1116,6 +1154,12 @@ function processCity(c) {
     const b = c.build;
     if (b.kind === 'unit') {
       if (b.key === 'settler' && c.pop < 2) return y;
+      if (!hasStratFor(c.civ, b.key)) {
+        if (c.warnedRes !== b.key) { c.warnedRes = b.key; notify(cv.id, `${c.name} kan ikke færdiggøre ${UNITS[b.key].name.toLowerCase()}: der mangler ${RESOURCES[UNITS[b.key].needs].name.toLowerCase()}.`, idx(c.x, c.y), 'warn'); }
+        if (!cv.human) c.build = null;
+        return y;
+      }
+      c.warnedRes = null;
       c.prod -= cost;
       if (b.key === 'settler') c.pop--;
       const u = createUnit(c.civ, b.key, c.x, c.y, c.blds.includes('barracks') && isMil({ type: b.key }));
@@ -1267,7 +1311,9 @@ function updateVisibility() {
   for (const u of G.units) {
     if (u.civ !== h) continue;
     let r = u.type === 'scout' ? 3 : 2;
-    if (G.tiles[idx(u.x, u.y)].t === 'hills') r++;
+    const ut = G.tiles[idx(u.x, u.y)];
+    if (ut.t === 'hills') r++;
+    if (ut.nat && NATURAL[ut.nat].sight) r += NATURAL[ut.nat].sight;
     for (const j of tilesInRadius(u.x, u.y, r)) { VIS[j] = 1; G.explored[j] = 1; }
   }
   for (const c of G.cities) {
@@ -1280,6 +1326,7 @@ function updateVisibility() {
   }
   for (const u of G.units) if (u.civ !== h && VIS[idx(u.x, u.y)]) meet(h, u.civ);
   for (const c of G.cities) if (c.civ !== h && VIS[idx(c.x, c.y)]) meet(h, c.civ);
+  if (G.natSeen) checkNatDiscovery();
 }
 function meet(a, b) {
   if (a === b || G.met[a][b]) return;
@@ -1294,11 +1341,12 @@ function meetCheck(cid, i) {
   if (VIS && VIS[i]) meet(G.human, cid);
 }
 
-function declareWar(a, b, quiet) {
+function declareWar(a, b, quiet, viaPact) {
   if (G.war[a][b] || civ(a).barb || civ(b).barb) return;
   G.war[a][b] = G.war[b][a] = true;
   G.warSince[a][b] = G.warSince[b][a] = G.turn;
   meet(a, b);
+  onWarDeclared(a, b, viaPact);
   if (civ(b).minor && isMajor(civ(a))) civ(b).inf[a] = -50;
   if (quiet) return;
   if (a === G.human) notify(G.human, `Du har erklæret krig mod ${civ(b).name}.`, null, 'bad');
@@ -1309,6 +1357,7 @@ function makePeace(a, b) {
   if (!G.war[a][b] || civ(a).barb || civ(b).barb) return;
   G.war[a][b] = G.war[b][a] = false;
   G.warSince[a][b] = G.warSince[b][a] = G.turn;
+  remember(a, b, 'peace', 8, 'Sluttede fred med os', 20); remember(b, a, 'peace', 8, 'Sluttede fred med os', 20);
   if (a === G.human || b === G.human) notify(G.human, `Der er nu fred mellem dig og ${civ(a === G.human ? b : a).name}.`, null, 'good');
   else if (G.met[G.human][a] || G.met[G.human][b]) notify(G.human, `${civ(a).name} og ${civ(b).name} har sluttet fred.`, null, 'info');
 }
@@ -1325,6 +1374,7 @@ function techsFor(from, to) { return from.techs.filter(k => !to.techs.includes(k
 function aiWillSell(ai, buyer, k) {
   if (!canTradeTech(ai.id, buyer.id)) return false;
   if (score(buyer.id) > score(ai.id) * 1.3) return false;
+  if (attitude(ai.id, buyer.id).score < -10) return false;
   return ai.techs.includes(k);
 }
 function aiBuyPrice(ai, k) { return Math.round(techCost(ai, k) * 1.2); }
@@ -1332,6 +1382,7 @@ function sellTechToAi(seller, ai, k) {
   const price = aiBuyPrice(ai, k);
   if (ai.gold < price + 30) return false;
   ai.gold -= price; seller.gold += price; ai.techs.push(k);
+  remember(ai.id, seller.id, 'trade', 6, 'Handlede med os', 30);
   if (ai.research === k) { ai.research = null; aiChooseResearch(ai); }
   return price;
 }
@@ -1339,8 +1390,17 @@ function buyTechFromAi(buyer, ai, k) {
   const price = techPrice(buyer, k);
   if (buyer.gold < price || !aiWillSell(ai, buyer, k)) return false;
   buyer.gold -= price; ai.gold += price; buyer.techs.push(k);
+  remember(ai.id, buyer.id, 'trade', 6, 'Handlede med os', 30);
   if (buyer.research === k) buyer.research = null;
   return price;
+}
+
+function giftMajor(p, ai, gold) {
+  if (p.gold < gold) return 0;
+  p.gold -= gold; ai.gold += gold;
+  const v = Math.round(gold / 8);
+  remember(ai.id, p.id, 'gift', v, 'Gav os gaver', 40);
+  return v;
 }
 
 // ---------- Bystater ----------
@@ -1475,11 +1535,11 @@ function beginCivTurn(cid) {
   if (!cv.alive) return;
   for (const u of civUnits(cid)) {
     if (u.work) progressWork(u);
-    if (!u.acted && u.hp < 100) {
+    if ((!u.acted || hasPromo(u, 'march')) && u.hp < 100) {
       const i = idx(u.x, u.y);
       const ct = cityAt(i);
       const inCity = ct && ct.civ === cid;
-      u.hp = Math.min(100, u.hp + (inCity ? 25 : G.tiles[i].owner === cid ? 15 : embarked(u) || isSea(u) ? 5 : 10));
+      u.hp = Math.min(100, u.hp + (inCity ? 25 : G.tiles[i].owner === cid ? 15 : embarked(u) || isSea(u) ? 5 : 10) + extraHeal(u));
     }
     u.acted = false;
     u.moves = u.work ? 0 : maxMoves(u);
@@ -1514,12 +1574,13 @@ function beginCivTurn(cid) {
     cv.gold = 0;
   }
   cv.gold = Math.round(cv.gold * 10) / 10;
+  tickGovernment(cv);
 }
 
 function upkeep(cid) {
   const cs = civCities(cid);
   const units = civUnits(cid).filter(u => u.type !== 'settler' && !UNITS[u.type].gp).length;
-  const free = Math.max(3, cs.length * 2);
+  const free = Math.max(3, cs.length * (2 + (gov(civ(cid)).freeUnits || 0)));
   let u = Math.max(0, units - free) * 1;
   const smith = civHasWonder(cid, 'adamsmith');
   for (const c of cs) for (const b of c.blds) { const k = BUILDINGS[b].upkeep; if (!(smith && k === 1)) u += k; }
@@ -1551,7 +1612,9 @@ function endTurn() {
   }
   ANIM.rec = false;
   validateRoutes();
+  decayMemory();
   G.turn++;
+  for (const o of majors()) if (o.id !== h && G.ob[h][o.id] === G.turn) notify(h, `Aftalen om åbne grænser med ${o.name} er udløbet.`, null, 'info');
   beginCivTurn(h);
   for (const u of civUnits(h)) {
     if (u.path) followPath(u);
@@ -1577,7 +1640,7 @@ function checkVictory() {
 }
 
 // ---------- Gem / indlæs ----------
-const SAVE_KEY = 'imperium-save-v2';
+const SAVE_KEY = 'imperium-save-v3';
 function saveGame() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); return true; } catch (e) { return false; }
 }
@@ -1586,6 +1649,7 @@ function loadGame() {
     const s = localStorage.getItem(SAVE_KEY);
     if (!s) return null;
     G = JSON.parse(s);
+    ensureRealmState();
     assignAllTiles();
     updateVisibility();
     return G;
