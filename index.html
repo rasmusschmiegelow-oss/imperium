@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Imperium</title>
+<meta name="description" content="Et turbaseret strategispil i stil med Civilization. Byg byer, forsk, udvid dit rige og besejr dine rivaler.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="map" aria-label="Spilkort"></canvas>
+
+<header id="topbar" hidden>
+  <div class="brand">Imperium</div>
+  <div class="civbadge" id="civbadge"></div>
+  <button class="stat" id="stat-gold" title="Statskasse og indtægt pr. tur"></button>
+  <button class="stat" id="stat-sci" title="Forskning (T)"></button>
+  <div class="stat static" id="stat-year"></div>
+  <nav class="topnav">
+    <button id="btn-tech" title="Teknologitræ (T)">Teknologi</button>
+    <button id="btn-diplo" title="Diplomati (D)">Diplomati</button>
+    <button id="btn-menu" title="Menu (Esc)">Menu</button>
+  </nav>
+</header>
+
+<div id="minimap-wrap" hidden><canvas id="minimap" aria-label="Oversigtskort"></canvas></div>
+<section id="panel" hidden></section>
+<div id="endturn-wrap" hidden>
+  <div id="waiting"></div>
+  <button id="endturn">Afslut tur</button>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<div id="tooltip" hidden></div>
+<div id="busy" hidden><span>Modstanderne trækker …</span></div>
+<div id="modal-root"></div>
+
+<section id="start">
+  <div class="start-inner">
+    <h1>Imperium</h1>
+    <p class="lede">Før et folk fra den første bosættelse i 4000 f.Kr. til rumalderen. Grundlæg byer, forsk i nye teknologier, og vind ved erobring eller ved at sende det første rumskib mod Alpha Centauri.</p>
+    <div class="setup">
+      <div class="field">
+        <span class="label">Dit folk</span>
+        <div id="civ-pick" class="civ-pick"></div>
+      </div>
+      <div class="row">
+        <label class="field" for="opt-opp"><span class="label">Modstandere</span>
+          <select id="opt-opp"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select>
+        </label>
+        <label class="field" for="opt-size"><span class="label">Kortstørrelse</span>
+          <select id="opt-size"><option value="small">Lille</option><option value="medium" selected>Mellem</option><option value="large">Stor</option></select>
+        </label>
+        <label class="field" for="opt-diff"><span class="label">Sværhedsgrad</span>
+          <select id="opt-diff"><option value="easy">Let</option><option value="normal" selected>Normal</option><option value="hard">Svær</option></select>
+        </label>
+      </div>
+      <div class="actions">
+        <button id="btn-start" class="primary">Start nyt spil</button>
+        <button id="btn-continue" hidden>Fortsæt gemt spil</button>
+      </div>
+    </div>
+    <p class="hint">Træk for at flytte kortet, rul eller knib for at zoome. Klik på en enhed og derefter på et felt for at flytte den.</p>
+  </div>
+</section>
+
+<script src="js/data.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
