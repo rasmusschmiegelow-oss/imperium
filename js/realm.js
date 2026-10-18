@@ -292,6 +292,7 @@ function attitude(a, b) {
   if (routes) reasons.push(['Handelsruter mellem os', Math.min(15, routes * 5)]);
   if (!atWar(a, b) && G.turn > 40 && (!G.warSince[a][b] || G.turn - G.warSince[a][b] > 50)) reasons.push(['Langvarig fred', 8]);
   if (G.turn > 100 && score(b) > score(a) * 1.5) reasons.push(['Misundelse over jeres magt', -10]);
+  personalityReasons(A, B, reasons, routes);
   if (A.aggression > 1.2) reasons.push(['Krigerisk natur', -6]);
   else if (A.aggression < 0.8) reasons.push(['Fredelig natur', 6]);
   const s = clamp(reasons.reduce((x, r) => x + r[1], 0), -100, 100);

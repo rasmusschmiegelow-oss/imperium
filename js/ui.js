@@ -57,7 +57,7 @@ const UI = {
     this.bindInput();
     this.bindKeys();
     $('#btn-tech').onclick = () => this.openTech();
-    $('#btn-gov').onclick = () => this.openRealm(canFoundReligion(human()) ? 'religion' : 'gov');
+    $('#btn-gov').onclick = () => this.openRealm(canFoundReligion(human()) ? 'religion' : canAdoptPolicy(human()) ? 'society' : this.realmTab);
     $('#stat-faith').onclick = () => this.openRealm('religion');
     $('#stat-sci').onclick = () => this.openTech();
     $('#stat-gold').onclick = () => this.openDiplo();
@@ -611,15 +611,16 @@ const UI = {
     }
     const unh = civCities(h.id).reduce((a, c) => a + (c.unhappy || 0), 0);
     const lux = civLuxuries(h.id).length;
-    $('#stat-happy').innerHTML = `<span class="k">Tilfredshed</span>${unh ? `<b class="unhappy">${unh} utilfredse</b>` : '<b class="happy">Tilfredse</b>'}<span>${lux} luksus</span>`;
-    $('#stat-happy').title = unh ? 'Utilfredse indbyggere arbejder ikke. Klik for at se den mest utilfredse by.' : 'Alle indbyggere arbejder.';
+    $('#stat-happy').innerHTML = `<span class="k">Tilfredshed</span>${unh ? `<b class="unhappy">${unh} utilfredse</b>` : inGoldenAge(h) ? `<b class="golden">${ART.miscGlyph('golden', 14)} Guldalder</b>` : '<b class="happy">Tilfredse</b>'}<span>${inGoldenAge(h) ? `${h.ga.left} ture` : `${lux} luksus`}</span>`;
+    $('#stat-happy').title = (unh ? 'Utilfredse indbyggere arbejder ikke. Klik for at se den mest utilfredse by.' : 'Alle indbyggere arbejder.') + (inGoldenAge(h) ? ` Guldalder i ${h.ga.left} ture endnu.` : ` Guldalder: ${Math.floor(h.ga.pts)}/${goldenNeed(h)} point.`);
     $('#stat-year').innerHTML = `<b>${yearLabel(G.turn)}</b><span class="k">Tur ${G.turn}</span>`;
     const strat = Object.keys(RESOURCES).filter(k => RESOURCES[k].strat && resVisible(k, h));
     $('#stat-res').innerHTML = strat.map(k => { const a = stratAvail(h.id, k), sup = stratSupply(h.id, k); return `<span class="res ${a < 0 ? 'neg' : sup ? '' : 'none'}" title="${esc(RESOURCES[k].name)}: ${Math.max(0, a)} ledig af ${sup}">${ART.resGlyph(k, 15)}<b>${a}</b></span>`; }).join('');
     $('#stat-res').title = 'Strategiske ressourcer: ledige / i alt. Visse enheder kræver dem.';
     const gv = gov(h);
     $('#btn-gov').innerHTML = `${ART.miscGlyph('gov_' + h.gov, 16)} Riget`;
-    $('#btn-gov').title = `Regering: ${h.gov === 'anarchy' ? `Anarki (${h.anarchy} ture)` : gv.name}. Religion, sejr og statistik.`;
+    $('#btn-gov').title = `Regering: ${h.gov === 'anarchy' ? `Anarki (${h.anarchy} ture)` : gv.name}. Samfundspolitikker, religion, sejr og statistik.${canAdoptPolicy(h) ? ' Du kan indføre en ny politik!' : ''}`;
+    $('#btn-gov').classList.toggle('ready', canAdoptPolicy(h));
     const rel = civReligion(h.id);
     const fInc = civCities(h.id).reduce((a, c) => a + cityFaith(c), 0);
     $('#stat-faith').innerHTML = `${ART.miscGlyph('faith', 15)}<b class="faith">${Math.floor(h.faith || 0)}</b><span>+${fInc}</span>`;
@@ -1212,6 +1213,10 @@ const UI = {
   closeModal(silent) {
     const m = document.querySelector('.modal-bg');
     if (!m) return false;
+    if (m.dataset.lock) {
+      if (!silent) return false;
+      if (this.pendingEvent) { G.offers.unshift(this.pendingEvent); this.pendingEvent = null; }
+    }
     m.remove();
     if (!silent && this.afterModal) { const f = this.afterModal; this.afterModal = null; f(); }
     return true;
@@ -1311,12 +1316,13 @@ const UI = {
 
   openRealm(tab) {
     this.realmTab = tab || this.realmTab || 'gov';
-    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
-    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
-    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory');
+    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['society', 'Samfund', 'pol_tradition'], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
+    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'society' ? this.societyHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
+    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory' || this.realmTab === 'society');
     bg.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => this.openRealm(b.dataset.tab));
     if (this.realmTab === 'gov') this.bindGov(bg);
     if (this.realmTab === 'religion') this.bindReligion(bg);
+    if (this.realmTab === 'society') this.bindSociety(bg);
     if (this.realmTab === 'stats') this.bindStats(bg);
   },
 
@@ -1488,8 +1494,10 @@ const UI = {
       const at = attitude(c.id, h.id), ai = attitudeInfo(at.score);
       const why = at.reasons.length ? at.reasons.map(r => `${r[1] > 0 ? '+' : ''}${r[1]} ${r[0]}`).join('\n') : 'Ingen særlige grunde endnu';
       const agr = [hasPact(h.id, c.id) ? `<span class="chip ok">${ART.miscGlyph('dip_pact', 13)} Forsvarspagt</span>` : '', hasOB(h.id, c.id) ? `<span class="chip">${ART.miscGlyph('dip_ob', 13)} Åbne grænser</span>` : ''].join('');
-      return `<div class="drow"><i style="background:${c.color}"></i><div><div class="nm">${esc(c.name)}<span class="status ${war ? 'war' : 'peace'}">${war ? 'Krig' : 'Fred'}</span><span class="att ${ai.cls}" title="${esc(why)}">${ai.name} (${at.score > 0 ? '+' : ''}${at.score})</span>${agr}</div>
-        <div class="meta">${civCities(c.id).length} byer · militært ${mil} · ${score(c.id)} point · ${c.techs.length} teknologier · ${esc(gov(c).name)}</div>
+      const L = leaderOf(c);
+      return `<div class="drow lead">${this.leaderBadge(c, 34)}<div><div class="nm">${esc(c.name)} <span class="ldr">${esc(L.title)} ${esc(L.name)} · ${esc(personality(c).name)}</span><span class="status ${war ? 'war' : 'peace'}">${war ? 'Krig' : 'Fred'}</span><span class="att ${ai.cls}" title="${esc(why)}">${ai.name} (${at.score > 0 ? '+' : ''}${at.score})</span>${agr}</div>
+        <div class="meta">${civCities(c.id).length} byer · militært ${mil} · ${score(c.id)} point · ${c.techs.length} teknologier · ${esc(gov(c).name)}${c.policies && c.policies.length ? ` · ${c.policies.length} politikker` : ''}${inGoldenAge(c) ? ' · guldalder' : ''}</div>
+        <div class="said">“${esc(leaderLine(c, h.id))}”</div>
         ${at.reasons.length ? `<div class="reasons">${at.reasons.slice(0, 4).map(r => `<span class="${r[1] > 0 ? 'p' : 'n'}">${r[1] > 0 ? '+' : ''}${r[1]} ${esc(r[0])}</span>`).join('')}</div>` : ''}</div>
         <div class="btns">${war ? '' : `<button type="button" class="act" data-trade="${c.id}">${this.diploOpen[c.id] ? 'Luk forhandling' : 'Forhandl'}</button>`}${btn}</div></div>${tradeBlock(c)}`;
     }).join('');
@@ -1503,7 +1511,7 @@ const UI = {
       const allyName = m.ally != null ? civ(m.ally).name : 'ingen';
       return `<div class="drow minor"><i style="background:${m.color}"></i><div><div class="nm">${esc(m.name)} <span class="chip">${MINOR_TYPES[m.mtype].name}</span><span class="status ${war ? 'war' : st === 'Allieret' || st === 'Venner' ? 'peace' : 'neutral'}">${st}</span></div>
         <div class="meta">${esc(MINOR_TYPES[m.mtype].bonus)} · allieret med: ${esc(allyName)}</div>
-        <div class="infbar"><span style="width:${clamp(inf, 0, 100)}%"></span><em style="left:30%"></em><em style="left:60%"></em></div><div class="meta">Din indflydelse: ${inf} (venner ved 30, allieret ved 60)</div></div>
+        <div class="infbar"><span style="width:${clamp(inf, 0, 100)}%"></span><em style="left:30%"></em><em style="left:60%"></em></div><div class="meta">Din indflydelse: ${inf} (venner ved 30, allieret ved 60)</div>${m.quests && m.quests[h.id] ? `<div class="questline">${ART.miscGlyph('quest', 14)} Opgave: ${esc(questText(m, m.quests[h.id]))} · +${questReward(m.quests[h.id])} indflydelse · ${Math.max(0, m.quests[h.id].until - G.turn)} ture tilbage</div>` : ''}</div>
         <div class="btns">${war ? `<button type="button" class="act" data-p="${m.id}">Tilbyd fred</button>` : [50, 100, 250].map(g => `<button type="button" class="act" data-gift="${m.id}:${g}" ${h.gold >= g ? '' : 'disabled'}>Giv ${g}</button>`).join('') + `<button type="button" class="act danger" data-w="${m.id}">Erklær krig</button>`}</div></div>`;
     }).join('');
     const gp = `Næste store personlighed: ${Math.floor(h.gpp)}/${h.gpNext} point`;
@@ -1577,6 +1585,7 @@ const UI = {
   // Returnerer true hvis et tilbud blev vist
   showOffer(o) {
     this.offerNo = null;
+    if (o.type === 'event') return this.showEvent(o);
     const c = civ(o.from);
     const h = human();
     if (!c.alive) return false;
@@ -1614,7 +1623,7 @@ const UI = {
       yes = { label: `Betal ${o.gold} guld`, go: () => { h.gold -= o.gold; c.gold += o.gold; remember(c.id, h.id, 'demand', 6, 'Gav efter for vores krav', 20); } };
       this.offerNo = () => { remember(c.id, h.id, 'refused', -15, 'Afviste vores krav', 40); if (Math.random() < 0.3) declareWar(c.id, h.id); };
     } else return false;
-    const bg = this.modal(title, `<p>${text}</p>`,
+    const bg = this.modal(title, `${isMajor(c) && !c.human ? this.leaderQuote(c, h.id) : ''}<p>${text}</p>`,
       `<button type="button" class="act" id="o-no">Afvis</button>${yes ? `<button type="button" class="act primary" id="o-yes">${esc(yes.label)}</button>` : ''}`);
     this.afterModal = () => this.nextOffer();
     const yb = bg.querySelector('#o-yes');

@@ -569,6 +569,7 @@ function stepUnit(u, to) {
   const camp = campAt(to);
   if (camp && isMil(u) && !civ(u.civ).barb) {
     G.camps = G.camps.filter(k => k !== camp);
+    G.campsGone = (G.campsGone || []).concat([{ i: camp.i, by: u.civ, turn: G.turn }]).slice(-30);
     civ(u.civ).gold += 25;
     notify(u.civ, 'Du har ødelagt en barbarlejr og fundet 25 guld.', to, 'good');
     gainXp(u, 5);
@@ -642,6 +643,7 @@ function unitStrength(u, role, opp, tileI, ctx) {
   }
   if (opp && opp.type && T.antiMounted && UNITS[opp.type].cls === 'mounted') m += 1;
   m += promoBonus(u, role, ctx || { tile: tileI });
+  m += policyStrength(u, role, opp, tileI);
   if (stratShort(u)) m -= 0.25;
   s *= m;
   s *= 0.5 + 0.5 * u.hp / 100;
@@ -947,7 +949,8 @@ function cityHappiness(c) {
   if (lux) src.push([`Luksusvarer (${lux})`, lux]);
   if (civHasWonder(c.civ, 'gardens')) src.push(['De Hængende Haver', 1]);
   if (G.units.some(u => u.civ === c.civ && u.x === c.x && u.y === c.y && isMil(u) && !isSea(u) && !isAir(u))) src.push(['Garnison', 1 + (gv.garrison || 0)]);
-  if (c.unrest > 0) src.push(['Uro skabt af spioner', -3]);
+  if (c.unrest > 0) src.push([c.unrestWhy || 'Uro skabt af spioner', -3]);
+  societyHappy(c, cv, src);
   const rh = religionEffects(c).happy;
   if (rh) src.push([`Religion: ${RELIGIONS[c.rel].name}`, rh]);
   if (gv.happy) src.push([gv.name, gv.happy]);
@@ -1006,7 +1009,7 @@ function routeValue(a, b) {
   return v;
 }
 function routesOf(c) { return G.routes.filter(r => r.a === c.id || r.b === c.id); }
-function maxRoutes(c) { return 1 + (c.blds.includes('market') ? 1 : 0) + (c.blds.includes('bank') ? 1 : 0); }
+function maxRoutes(c) { return 1 + (policyFx(civ(c.civ)).maxRoutes || 0) + (c.blds.includes('market') ? 1 : 0) + (c.blds.includes('bank') ? 1 : 0); }
 function routeTrade(c) {
   let t = 0;
   for (const r of routesOf(c)) {
@@ -1084,31 +1087,32 @@ function cityYields(c) {
   if (c.blds.includes('granary')) f += 2;
   if (c.blds.includes('watermill')) p += 2;
   const re = religionEffects(c);
-  f += re.f;
-  let pm = 1 + (gv.prod || 0) + re.pm;
+  const sx = societyCity(c, cv);
+  f += re.f + sx.f; p += sx.p; t += sx.t;
+  let pm = 1 + (gv.prod || 0) + re.pm + sx.pm;
   if (c.blds.includes('workshop')) pm += 0.25;
   if (c.blds.includes('factory')) pm += 0.5;
   if (c.blds.includes('powerplant')) pm += 0.5;
   if (G.wonders.pyramids === c.id) pm += 0.25;
   if (civHasWonder(c.civ, 'hoover')) pm += 0.25;
-  let sm = 1 + (gv.sci || 0);
+  let sm = 1 + (gv.sci || 0) + sx.sm;
   if (c.blds.includes('library')) sm += 0.5;
   if (c.blds.includes('university')) sm += 0.5;
   if (c.blds.includes('lab')) sm += 0.75;
   if (G.wonders.newton === c.id) sm += 1;
-  let gm = 1 + (gv.gold || 0);
+  let gm = 1 + (gv.gold || 0) + sx.gm;
   if (c.blds.includes('market')) gm += 0.5;
   if (c.blds.includes('bank')) gm += 0.5;
   const ai = cv.human ? 1 : DIFFICULTY[G.difficulty].ai;
   const prod = Math.round(p * pm * ai);
   let sci = t * cv.sciRate * sm * ai;
   if (G.wonders.library === c.id) sci += 8;
-  sci += re.sci;
+  sci += re.sci + sx.sci;
   if (cv.gov === 'anarchy') sci = 0;
-  const gold = t * (1 - cv.sciRate) * gm * ai + re.gold;
+  const gold = t * (1 - cv.sciRate) * gm * ai + re.gold + sx.gold;
   const foodNet = f - c.pop * 2;
   const cap = c.blds.includes('aqueduct') ? 30 : 8;
-  let culture = 1 + (c.capital ? 1 : 0) + re.culture;
+  let culture = 1 + (c.capital ? 1 : 0) + re.culture + sx.culture;
   for (const b of c.blds) culture += BUILDINGS[b].culture || 0;
   culture += Object.values(G.wonders).filter(id => id === c.id).length * 2;
   if (c.capital && gv.capitalCulture) culture += gv.capitalCulture;
@@ -1161,7 +1165,7 @@ function buyCost(c) {
   if (!c.build || c.build.kind === 'proj') return Infinity;
   const left = Math.max(0, buildCost(c.build) - c.prod);
   const k = c.build.kind === 'wonder' ? 4 : 2;
-  return Math.ceil((left * k + Math.pow(left, 1.15) * 0.3 + 10) * (1 + (gov(civ(c.civ)).buy || 0)));
+  return Math.ceil((left * k + Math.pow(left, 1.15) * 0.3 + 10) * (1 + (gov(civ(c.civ)).buy || 0) + (policyFx(civ(c.civ)).buy || 0)));
 }
 
 function processCity(c) {
@@ -1191,7 +1195,7 @@ function processCity(c) {
     expandBorder(c);
   }
   c.hp = Math.min(100, c.hp + (G.turn - c.lastAttacked > 1 ? 15 : 6));
-  if (c.unrest > 0) c.unrest--;
+  if (c.unrest > 0 && --c.unrest === 0) c.unrestWhy = null;
   // produktion
   if (!c.build && !cv.human) aiChooseBuild(c);
   if (!c.build) return y;
@@ -1301,6 +1305,7 @@ function progressWork(u) {
 // ---------- Store personligheder ----------
 function addGreatPoints(cv, type, n) {
   if (!isMajor(cv)) return;
+  n *= 1 + (policyFx(cv).gpRate || 0);
   cv.gpw[type] += n; cv.gpp += n;
 }
 function processGreatPeople(cv) {
@@ -1469,9 +1474,11 @@ function giftMinor(p, m, gold) {
   p.gold -= gold;
   const add = Math.round(gold / 3 / (1 + eraOf(p) * 0.15));
   m.inf[p.id] = Math.min(150, (m.inf[p.id] || 0) + add);
+  questGift(m, p, gold);
   return add;
 }
 function processMinors() {
+  processQuests();
   const ws = majors().filter(c => c.alive);
   for (const m of G.civs) {
     if (!m.minor || !m.alive) continue;
@@ -1603,6 +1610,7 @@ function beginCivTurn(cid) {
   for (const c of civCities(cid)) { const y = processCity(c); sci += y.sci; gold += y.gold; faith += y.faith || 0; cul += y.culture || 0; }
   cv.faith = (cv.faith || 0) + faith;
   cv.cultureTotal = (cv.cultureTotal || 0) + cul;
+  societyTurn(cv, cul);
   if (cv.human && canFoundReligion(cv) && !cv.toldReligion) { cv.toldReligion = true; notify(cid, 'Du har tro nok til at grundlægge en religion. Åbn Riget → Religion.', null, 'good'); }
   processGreatPeople(cv);
   cv.sci += sci;
@@ -1635,7 +1643,7 @@ function beginCivTurn(cid) {
 function upkeep(cid) {
   const cs = civCities(cid);
   const units = civUnits(cid).filter(u => u.type !== 'settler' && !UNITS[u.type].gp).length;
-  const free = Math.max(3, cs.length * (2 + (gov(civ(cid)).freeUnits || 0)));
+  const free = Math.max(3, cs.length * (2 + (gov(civ(cid)).freeUnits || 0) + (policyFx(civ(cid)).freeUnits || 0)));
   let u = Math.max(0, units - free) * 1;
   const smith = civHasWonder(cid, 'adamsmith');
   for (const c of cs) for (const b of c.blds) { const k = BUILDINGS[b].upkeep; if (!(smith && k === 1)) u += k; }

@@ -10,6 +10,8 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Byer:** byerne vokser, producerer og udvider deres grænser. Du kan vælge fokus (mad, produktion, handel) og låse de felter, indbyggerne arbejder på. Hver by har en produktionskø, så du kan sætte flere ting i gang efter hinanden.
 - **Tilfredshed:** utilfredse indbyggere arbejder ikke. Templer, markeder, arenaer, katedraler, garnisoner og luksusvarer holder byerne glade, mens store riger bliver sværere at styre.
 - **Regeringsformer:** Despoti, Monarki, Republik, Demokrati og Kommunisme, hver med sine fordele og ulemper. Et skifte koster et par ture med anarki.
+- **Samfundspolitikker:** kultur giver politikker i seks grene: Tradition, Frihed, Ære, Fromhed, Handel og Rationalisme. Når en hel gren er indført, begynder en guldalder.
+- **Guldalder:** overskud af tilfredshed samles op og udløser en guldalder med +20 % produktion og guld og ekstra kultur.
 - **Religion:** tro fra helligdomme, templer og Stonehenge. Grundlæg en af syv religioner med trosretninger, og spred den med missionærer og fra by til by.
 - **Forskning:** 37 teknologier fra Landbrug til Rumfart, vist i et teknologitræ med forbindelser.
 - **Militær:** landenheder, krigsskibe og indskibning. Med Sejlads sejler landenheder langs kysten, med Astronomi over åbent hav. Gamle enheder kan opgraderes for guld. Det er sværere at angribe over floder. Enheder samler erfaring og vælger forfremmelser som Stormtropper, Skovkæmper, Præcision og Felthospital.
@@ -21,6 +23,9 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Store personligheder:** videnskabsmand, købmand, ingeniør og general.
 - **Handel:** karavaner opretter handelsruter mellem byer, og du kan købe og sælge teknologi med andre folk.
 - **Diplomati:** krig og fred med 1–6 computermodstandere, der samler hære, bygger veje og kommer med tilbud. De husker, hvad du har gjort, og har en holdning til dig. I kan indgå åbne grænser, forsvarspagter og fælles krig, og de kan stille krav. Bystater kan blive dine venner eller allierede, hvis du giver dem gaver.
+- **Ledere:** hver modstander har en leder med sin egen personlighed (erobrer, bygmester, handelsmand, lærd, diplomat eller troende). Den styrer, hvad computeren gør, hvad den synes om dig, og hvad den siger.
+- **Opgaver fra bystater:** bystater beder dig fx ødelægge en barbarlejr, bygge et vidunder, opdage en teknologi eller grundlægge en by. Du får indflydelse, når du løser dem.
+- **Begivenheder:** pest, jordskælv, oversvømmelser, oprør, guldfund, flygtninge, opfindere og kunstnere. Hver begivenhed giver dig et valg med fordele og ulemper.
 - **Barbarer:** barbarer angriber fra lejre i tomme områder. Hvis du ødelægger en lejr, får du guld.
 - **Oplevelse:** du kan se modstandernes træk som animation. Spillet har lydeffekter og generativ musik, en guide de første ture og virker på mobil.
 - **Sejr:** ved erobring, rumskib, kultur, diplomati (afstemning i De Forenede Nationer) eller på point, når den sidste tur er spillet. Du vælger på startskærmen, hvilke sejrsformer der gælder, og om spillet skal have hurtigt (270 ture), normalt (400) eller episk (600) tempo. Fremskridt for alle folk vises under Riget → Sejr.
@@ -52,6 +57,8 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - `js/realm.js`: regeringsformer, erfaring og forfremmelser, ruiner, naturvidundere, strategiske ressourcer og diplomatiske relationer
 - `js/world.js`: religion, luftkrig, sejr ved kultur og diplomati, historik og demografi
 - `js/extra.js`: produktionskø, automatisering, spionage, spiltempo, sejrsvalg og kortet over Jorden
+- `js/society.js`: samfundspolitikker, guldalder, ledere, opgaver fra bystater og begivenheder
+- `js/society-ui.js`: skærmbilleder til samfund, ledere og begivenheder
 - `js/online.js`: onlinespil, lobby, chat, overtagelse og spillerkoder
 - `js/art.js`: grafikken fra Paper-filen "Imperium · Grafik" (stregikoner, terræn, byer og ressourcer)
 - `js/ui.js`: tegning af kortet, input, paneler, animationer og guide

@@ -88,7 +88,7 @@ function aiChooseBuild(c) {
   const sh = bestShip(cv);
   if (sh && cityCoastal(c) && ships < Math.ceil(cs.filter(cityCoastal).length * 0.4) && Math.random() < 0.15) return set('unit', sh);
   const wonders = opts.filter(o => o.kind === 'wonder');
-  if (wonders.length && Math.random() < 0.3) { const w = pick(wonders); return set('wonder', w.key); }
+  if (wonders.length && Math.random() < personality(cv).wonder) { const w = pick(wonders); return set('wonder', w.key); }
   const order = ['granary', 'shrine', 'watermill', 'library', 'market', 'temple', 'harbor', 'workshop', 'walls', 'aqueduct', 'amphitheater', 'arena', 'university', 'bank', 'cathedral', 'museum', 'barracks', 'factory', 'powerplant', 'airport', 'lab', 'broadcast'];
   for (const k of order) {
     if (!has('bld', k)) continue;

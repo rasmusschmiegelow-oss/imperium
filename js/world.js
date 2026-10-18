@@ -14,6 +14,7 @@ function ensureWorldState() {
     if (!c.inbox) c.inbox = [];
   }
   for (const c of G.cities) { if (c.rel === undefined) c.rel = null; if (!c.relP) c.relP = {}; }
+  ensureSocietyState();
 }
 
 // ---------- Religion ----------
@@ -126,7 +127,9 @@ function cityFaith(c) {
   for (const b of c.blds) f += BUILDINGS[b].faith || 0;
   for (const k in G.wonders) if (G.wonders[k] === c.id && WONDERS[k].faith) f += WONDERS[k].faith;
   for (const j of cityWorkable(c)) { const n = G.tiles[j].nat; if (n && NATURAL[n].faith) f += NATURAL[n].faith; }
-  return f + religionEffects(c).faith;
+  const pf = policyFx(civ(c.civ));
+  f += pf.cityFaith || 0;
+  return Math.round((f + religionEffects(c).faith) * (1 + (pf.faithMul || 0)));
 }
 
 // AI og religion
