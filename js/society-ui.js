@@ -28,7 +28,7 @@ Object.assign(UI, {
       const items = Object.keys(POLICIES).filter(k => POLICIES[k].tree === t).map(k => {
         const p = POLICIES[k];
         const has = h.policies.includes(k);
-        return `<li class="${has ? 'has' : ''}"><div><b>${esc(p.name)}</b><span>${esc(p.desc)}</span></div>${has ? '<span class="chip ok">Indført</span>' : open ? `<button type="button" class="act ${ready ? 'primary' : ''}" data-pol="${k}" ${ready ? '' : 'disabled'}>Indfør</button>` : ''}</li>`;
+        return `<li class="${has ? 'has' : ''}"><div><b>${esc(p.name)}</b><span>${esc(p.desc)}</span></div>${has ? '<span class="chip ok">Indført</span>' : open ? `<button type="button" class="act ${ready ? 'ghost' : ''}" data-pol="${k}" ${ready ? '' : 'disabled'}>Indfør</button>` : ''}</li>`;
       }).join('');
       return `<div class="poltree ${open ? '' : 'locked'} ${done ? 'done' : ''}"><div class="pth">${ART.miscGlyph(tr.icon, 26)}<div><b>${esc(tr.name)}</b><span>${open ? esc(tr.desc) : `Kræver ${esc(TECHS[tr.tech].name)}`}</span></div>${done ? '<span class="chip w">Fuldført</span>' : ''}</div><ul>${items}</ul></div>`;
     }).join('');

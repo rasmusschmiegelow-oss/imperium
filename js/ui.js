@@ -77,11 +77,19 @@ const UI = {
   buildStart() {
     let chosen = 'dk';
     const pickEl = $('#civ-pick');
-    pickEl.innerHTML = CIVS.map(c => `<button type="button" data-k="${c.key}" class="${c.key === chosen ? 'on' : ''}"><i style="background:${c.color}"></i>${esc(c.name)}</button>`).join('');
+    const renderPick = () => {
+      const sel = CIVS.find(c => c.key === chosen);
+      const L = leaderOf({ key: sel.key, name: sel.name });
+      const P = PERSONALITIES[L.p] || PERSONALITIES.diplomat;
+      const ini = L.name.split(' ').map(w => w[0]).slice(0, 2).join('');
+      pickEl.innerHTML = `<div class="civ-sel" style="--c:${sel.color}"><span class="seal" style="--c:${sel.color}">${esc(ini)}</span><div><b>${esc(sel.name)}</b><em>${esc(L.title)} ${esc(L.name)} · ${esc(P.name.toLowerCase())}</em></div></div>
+        <div class="civ-chips">${CIVS.filter(c => c.key !== chosen).map(c => `<button type="button" data-k="${c.key}"><i style="background:${c.color}"></i>${esc(c.name)}</button>`).join('')}</div>`;
+    };
+    renderPick();
     pickEl.onclick = (e) => {
-      const b = e.target.closest('button'); if (!b) return;
+      const b = e.target.closest('button[data-k]'); if (!b) return;
       chosen = b.dataset.k; this.chosenCiv = chosen;
-      pickEl.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      renderPick(); renderPlayers();
     };
     $('#btn-continue').hidden = !hasSave();
     const renderPlayers = () => {
@@ -603,7 +611,7 @@ const UI = {
   renderHUD() {
     if (this.preview) return;
     const h = human();
-    $('#civbadge').innerHTML = `<i style="background:${h.color}"></i>${esc(h.name)}`;
+    $('#civbadge').innerHTML = `<span class="seal" style="--c:${h.color}">${esc(isMajor(h) ? leaderInitials(h) : h.name[0])}</span><span class="cn"><b>${esc(h.name)}</b><em>${esc(isMajor(h) ? rulerName(h) : '')}</em></span>`;
     const inc = civIncome(h.id);
     $('#stat-gold').innerHTML = `<span class="k">Guld</span><b class="gold">${fmt(h.gold)}</b><span>${inc.gold >= 0 ? '+' : ''}${fmt(inc.gold)}</span>`;
     if (h.research) {
@@ -636,7 +644,7 @@ const UI = {
     $('#stat-faith').classList.toggle('ready', canFoundReligion(h));
     const b = this.readOnly ? null : this.blocker();
     const et = $('#endturn');
-    et.textContent = this.readOnly ? 'Venter …' : b ? b.label : this.online ? 'Afslut og send tur' : 'Afslut tur';
+    et.innerHTML = `<small>Tur ${G.turn}</small><span>${esc(this.readOnly ? 'Venter …' : b ? b.label : this.online ? 'Afslut og send tur' : 'Afslut tur')}</span>`;
     et.classList.toggle('blocker', !!b || this.readOnly);
     const w = this.waitingUnits().length;
     $('#waiting').innerHTML = w ? `${w} ${w === 1 ? 'enhed venter' : 'enheder venter'} · <button type="button" id="btn-next">Næste</button>` : '';
@@ -778,7 +786,7 @@ const UI = {
     if (!G) return;
     const ctx = this.ctx, z = this.cam.z, dpr = this.dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#080b10';
+    ctx.fillStyle = '#0D1013';
     ctx.fillRect(0, 0, this.w, this.h);
     const W = worldW();
     const x0 = this.cam.x, y0 = this.cam.y, x1 = x0 + this.w / z, y1 = y0 + this.h / z;
@@ -1220,7 +1228,7 @@ const UI = {
     this.closeModal(true);
     const bg = document.createElement('div');
     bg.className = 'modal-bg';
-    bg.innerHTML = `<div class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true"><header><h2>${title}</h2><button type="button" class="x" aria-label="Luk">×</button></header><div class="body">${body}</div>${foot ? `<div class="foot">${foot}</div>` : ''}</div>`;
+    bg.innerHTML = `<div class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true"><header><div class="mt"><span class="mrunes" aria-hidden="true">${typeof toRunes === 'function' ? toRunes(String(title).replace(/<[^>]*>/g, '')) : ''}</span><h2>${title}</h2></div><button type="button" class="x" aria-label="Luk">×</button></header><div class="body">${body}</div>${foot ? `<div class="foot">${foot}</div>` : ''}</div>`;
     bg.addEventListener('pointerdown', e => { if (e.target === bg) this.closeModal(); });
     bg.querySelector('.x').onclick = () => this.closeModal();
     document.body.appendChild(bg);
@@ -1267,7 +1275,7 @@ const UI = {
         </button>`;
       }).join('')}</div>`;
     }).join('');
-    const bg = this.modal('Teknologi', `<p>Du forsker <b style="color:var(--sci)">+${fmt(inc.sci)}</b> pr. tur. Vælg et emne, der er markeret med bronze.</p><div class="scroll-x"><div class="techgrid">${cols}</div></div>`, '', true);
+    const bg = this.modal('Teknologi', `<p>Du forsker <b style="color:var(--sci)">+${fmt(inc.sci)}</b> pr. tur. Vælg et emne, der er markeret med guld.</p><div class="scroll-x"><div class="techgrid">${cols}</div></div>`, '', true);
     bg.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { h.research = b.dataset.t; this.closeModal(); this.refresh(); });
     requestAnimationFrame(() => this.drawTechLines(bg, h));
   },
@@ -1705,7 +1713,7 @@ const UI = {
       text = o.how === 'rum' ? `${civ(o.winner).name} sendte det første rumskib af sted.` : o.how === 'kultur' ? `${civ(o.winner).name} vandt en kulturel sejr.` : o.how === 'diplomati' ? `${civ(o.winner).name} blev valgt som verdensleder i De Forenede Nationer.` : o.how === 'erobring' ? `${civ(o.winner).name} har erobret verden.` : `${civ(o.winner).name} sluttede med flest point.`;
     }
     text = text.replace(/\.\./g, '.');
-    const bg = this.modal(title, `<p>${esc(text)}</p><p>Dine point: <b>${score(h.id)}</b> · Tur ${G.turn}</p>${this.legacyHtml(h)}<div class="chart">${this.chartSvg('s', true)}</div>`,
+    const bg = this.modal(title, `<div class="gameover"><p class="go-lede">${esc(text)}</p>${this.legacyHtml(h)}<p class="sub">Dine point: <b>${score(h.id)}</b> · tur ${G.turn}</p><div class="chart">${this.chartSvg('s', true)}</div></div>`,
       `<button type="button" class="act" id="g-look">Se kortet</button><button type="button" class="act" id="g-chron">Læs krøniken</button><button type="button" class="act primary" id="g-new">Nyt spil</button>`, true);
     bg.querySelector('#g-chron').onclick = () => { this.afterModal = () => this.showGameOver(); this.openRealm('chronicle'); };
     bg.querySelector('#g-new').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ingen lager */ } location.reload(); };

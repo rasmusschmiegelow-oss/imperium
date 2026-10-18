@@ -50,7 +50,7 @@ Object.assign(UI, {
         const why = h.exp ? 'Du har allerede et togt undervejs' : D.sea && !h.techs.includes('sailing') ? 'Kræver Sejlads' : h.gold < cost ? `Kræver ${cost} guld` : '';
         btn = `<button type="button" class="act ${why ? '' : 'primary'}" data-exp="${k}" ${why ? 'disabled' : ''} title="${esc(why)}">Send togt (${cost} guld)</button><button type="button" class="act" data-look="${r.area}">Vis området</button>`;
       } else status = '<span class="chip">Ukendt</span>';
-      return `<div class="legend ${L.found != null ? 'found' : ''}">${ART.miscGlyph(D.icon, 30)}<div><b>${esc(r || L.found != null ? D.name : 'Et ukendt sagnsted')}</b><span>${esc(r || L.found != null ? D.desc : 'Rygterne har endnu ikke nået dig.')}</span><div>${status}</div></div><div class="btns">${btn}</div></div>`;
+      return `<div class="lgd ${L.found != null ? 'found' : ''}">${ART.miscGlyph(D.icon, 30)}<div><b>${esc(r || L.found != null ? D.name : 'Et ukendt sagnsted')}</b><span>${esc(r || L.found != null ? D.desc : 'Rygterne har endnu ikke nået dig.')}</span><div>${status}</div></div><div class="btns">${btn}</div></div>`;
     }).join('');
     return `${ex}<p>Verden gemmer på sagnsteder. Rygter fortæller med tiden, i hvilken retning de ligger, og søgeområdet vises på kortet. Find dem med en enhed, eller send et togt. Det tager nogle ture, og der kan ske meget undervejs. Den, der kommer først, får gaven.</p><div class="legends">${rows}</div>`;
   },
@@ -133,7 +133,7 @@ Object.assign(UI, {
     const fresh = G.chron.filter(e => e.id > h.chronSeen && BIG[e.kind] && (e.civ === h.id || e.about === h.id || e.kind === 'crisis' || (e.kind === 'legend' && / fandt /.test(e.text)) || (e.kind === 'wonder' && G.met[h.id][e.civ])));
     h.chronSeen = G.chronId;
     if (!this.skaldPrefs().cards && !this.skaldPrefs().voice) return;
-    this.skaldQ = (this.skaldQ || []).concat(fresh.slice(-4).map(e => ({ title: BIG[e.kind], text: e.text, turn: e.turn, kind: e.kind })));
+    this.skaldQ = (this.skaldQ || []).concat(fresh.slice(-4).map(e => ({ title: e.kind === 'city' && !/tilnavnet/.test(e.text) ? 'En ny by' : BIG[e.kind], text: e.text, turn: e.turn, kind: e.kind })));
     if (!this.skaldBusy) this.skaldNext();
   },
   skaldNext() {

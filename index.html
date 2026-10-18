@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Imperium</title>
-<meta name="description" content="Et turbaseret strategispil i stil med Civilization. Byg byer, forsk, udvid dit rige og besejr dine rivaler.">
+<meta name="description" content="Et turbaseret strategispil om årstider, dynastier, helte og eftermæle. Før dit folk fra 4000 f.Kr. til rumalderen.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800;900&family=Alegreya+Sans:wght@400;500;700;800&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -48,56 +48,53 @@
 
 <section id="start">
   <div class="start-inner">
-    <h1>Imperium</h1>
-    <p class="lede">Før et folk fra den første bosættelse i 4000 f.Kr. til rumalderen. Overlev hårde vintre, før kronen videre i dit dynasti, skab helte, som skjaldene synger om, og stå sammen med verden, når krisen rammer. Til sidst afgør dit eftermæle, hvordan historien husker dig.</p>
-    <div class="setup">
-      <div class="field">
-        <span class="label">Dit folk</span>
-        <div id="civ-pick" class="civ-pick"></div>
-      </div>
-      <div class="row">
-        <label class="field" for="opt-players"><span class="label">Spillere ved skærmen</span>
-          <select id="opt-players"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
-        </label>
-        <label class="field" for="opt-opp"><span class="label">Computermodstandere</span>
-          <select id="opt-opp"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select>
-        </label>
-        <label class="field" for="opt-size"><span class="label">Kortstørrelse</span>
-          <select id="opt-size"><option value="small">Lille</option><option value="medium" selected>Mellem</option><option value="large">Stor</option></select>
-        </label>
-        <label class="field" for="opt-diff"><span class="label">Sværhedsgrad</span>
-          <select id="opt-diff"><option value="easy">Let</option><option value="normal" selected>Normal</option><option value="hard">Svær</option></select>
-        </label>
-        <label class="field" for="opt-map"><span class="label">Korttype</span>
-          <select id="opt-map"><option value="continents" selected>Kontinenter</option><option value="pangaea">Pangæa</option><option value="islands">Øer</option><option value="earth">Jorden</option></select>
-        </label>
-        <label class="field" for="opt-minors"><span class="label">Bystater</span>
-          <select id="opt-minors"><option value="auto" selected>Efter kortstørrelse</option><option value="0">Ingen</option><option value="2">2</option><option value="4">4</option><option value="6">6</option><option value="8">8</option></select>
-        </label>
-        <label class="field" for="opt-pace"><span class="label">Tempo</span>
-          <select id="opt-pace"><option value="quick">Hurtigt (ca. 270 ture)</option><option value="standard" selected>Standard (400 ture)</option><option value="epic">Episk (ca. 600 ture)</option></select>
-        </label>
-        <div class="field"><span class="label">Sejrsformer</span>
-          <span class="checkrow vchecks"><label><input type="checkbox" id="v-conquest" checked> Erobring</label><label><input type="checkbox" id="v-space" checked> Rumskib</label><label><input type="checkbox" id="v-culture" checked> Kultur</label><label><input type="checkbox" id="v-diplo" checked> Diplomati</label></span>
-        </div>
-        <label class="field" for="opt-relic"><span class="label">Arvestykke</span>
-          <select id="opt-relic"></select>
-        </label>
-        <label class="field check" for="opt-guide"><span class="label">Guide</span>
-          <span class="checkrow"><input type="checkbox" id="opt-guide" checked> Vis guide for nye spillere</span>
-        </label>
-      </div>
-      <div class="row" id="extra-players" hidden></div>
+    <div class="start-hero">
+      <div class="overline"><i></i>Et strategispil · 4000 f.Kr. til rumalderen</div>
+      <div class="hero-runes" aria-hidden="true">ᛁᛘᛒᛁᚱᛁᚢᛘ</div>
+      <h1>Imperium</h1>
+      <p class="lede">Før dit folk gennem hårde vintre og skiftende konger. Skab helte, som skjaldene synger om, og lad dit eftermæle afgøre, hvordan historien husker dig.</p>
       <div class="actions">
-        <button id="btn-start" class="primary">Start nyt spil</button>
-        <button id="btn-continue" hidden>Fortsæt gemt spil</button>
-        <button id="btn-load">Indlæs …</button>
-        <button id="btn-online" class="online">Spil online</button>
-        <button id="btn-legacy">Æresbogen</button>
+        <button id="btn-start" class="primary"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3 L20 12 L6 21 Z" fill="currentColor"/></svg>Begynd sagaen</button>
+        <button id="btn-continue" class="link" hidden>Fortsæt spil</button>
+        <button id="btn-online" class="link">Spil online</button>
+        <button id="btn-legacy" class="link">Æresbogen</button>
+        <button id="btn-load" class="link">Indlæs</button>
       </div>
     </div>
-    <p class="hint">Træk for at flytte kortet, rul eller knib for at zoome. Klik på en enhed og derefter på et felt for at flytte den.</p>
+    <div class="setup">
+      <div class="setup-h"><span class="label">Dit folk</span><span class="count">7 folk at vælge imellem</span></div>
+      <div id="civ-pick" class="civ-pick"></div>
+      <div class="srows">
+        <label class="srow" for="opt-map"><span class="label">Verden</span>
+          <select id="opt-map"><option value="continents" selected>Kontinenter</option><option value="pangaea">Pangæa</option><option value="islands">Øer</option><option value="earth">Jorden</option></select></label>
+        <label class="srow" for="opt-size"><span class="label">Størrelse</span>
+          <select id="opt-size"><option value="small">Lille kort</option><option value="medium" selected>Mellemstort kort</option><option value="large">Stort kort</option></select></label>
+        <label class="srow" for="opt-opp"><span class="label">Rivaler</span>
+          <select id="opt-opp"><option value="1">1 rivaliserende folk</option><option value="2">2 rivaliserende folk</option><option value="3" selected>3 rivaliserende folk</option><option value="4">4 rivaliserende folk</option><option value="5">5 rivaliserende folk</option><option value="6">6 rivaliserende folk</option></select></label>
+        <label class="srow" for="opt-diff"><span class="label">Sværhed</span>
+          <select id="opt-diff"><option value="easy">Let</option><option value="normal" selected>Normal</option><option value="hard">Svær</option></select></label>
+        <label class="srow" for="opt-pace"><span class="label">Tempo</span>
+          <select id="opt-pace"><option value="quick">Hurtigt · ca. 270 ture</option><option value="standard" selected>Standard · 400 ture</option><option value="epic">Episk · ca. 600 ture</option></select></label>
+        <label class="srow saga-row" for="opt-relic"><span class="label">Arvestykke</span>
+          <select id="opt-relic"></select></label>
+      </div>
+      <details class="more">
+        <summary>Flere valg</summary>
+        <div class="srows">
+          <label class="srow" for="opt-players"><span class="label">Spillere ved skærmen</span>
+            <select id="opt-players"><option value="1" selected>1 spiller</option><option value="2">2 spillere</option><option value="3">3 spillere</option><option value="4">4 spillere</option></select></label>
+          <div class="row" id="extra-players" hidden></div>
+          <label class="srow" for="opt-minors"><span class="label">Bystater</span>
+            <select id="opt-minors"><option value="auto" selected>Efter kortstørrelse</option><option value="0">Ingen</option><option value="2">2 bystater</option><option value="4">4 bystater</option><option value="6">6 bystater</option><option value="8">8 bystater</option></select></label>
+          <div class="srow"><span class="label">Sejrsformer</span>
+            <span class="checkrow vchecks"><label><input type="checkbox" id="v-conquest" checked> Erobring</label><label><input type="checkbox" id="v-space" checked> Rumskib</label><label><input type="checkbox" id="v-culture" checked> Kultur</label><label><input type="checkbox" id="v-diplo" checked> Diplomati</label></span></div>
+          <label class="srow" for="opt-guide"><span class="label">Guide</span>
+            <span class="checkrow"><input type="checkbox" id="opt-guide" checked> Vis guide for nye spillere</span></label>
+        </div>
+      </details>
+    </div>
   </div>
+  <div class="start-foot"><span>Træk for at flytte kortet · rul eller knib for at zoome</span><span class="foot-runes" aria-hidden="true">᛫ᛋᛅᚴᛅ᛫</span></div>
 </section>
 
 <script src="js/data.js"></script>
