@@ -133,7 +133,7 @@ Object.assign(UI, {
     const fresh = G.chron.filter(e => e.id > h.chronSeen && BIG[e.kind] && (e.civ === h.id || e.about === h.id || e.kind === 'crisis' || (e.kind === 'legend' && / fandt /.test(e.text)) || (e.kind === 'wonder' && G.met[h.id][e.civ])));
     h.chronSeen = G.chronId;
     if (!this.skaldPrefs().cards && !this.skaldPrefs().voice) return;
-    this.skaldQ = (this.skaldQ || []).concat(fresh.slice(-4).map(e => ({ title: e.kind === 'city' && !/tilnavnet/.test(e.text) ? 'En ny by' : BIG[e.kind], text: e.text, turn: e.turn, kind: e.kind })));
+    this.skaldQ = (this.skaldQ || []).concat(fresh.slice(-4).map(e => ({ title: e.kind === 'city' ? (/tilnavnet/.test(e.text) ? 'Et tilnavn' : /blev kendt som/.test(e.text) ? 'Byens sjæl' : 'En ny by') : BIG[e.kind], text: e.text, turn: e.turn, kind: e.kind })));
     if (!this.skaldBusy) this.skaldNext();
   },
   skaldNext() {

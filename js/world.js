@@ -130,6 +130,7 @@ function cityFaith(c) {
   for (const j of cityWorkable(c)) { const n = G.tiles[j].nat; if (n && NATURAL[n].faith) f += NATURAL[n].faith; }
   const pf = policyFx(civ(c.civ));
   f += pf.cityFaith || 0;
+  if (c.soul && SOULS[c.soul] && SOULS[c.soul].faith) f += SOULS[c.soul].faith;
   return Math.round((f + religionEffects(c).faith) * (1 + (pf.faithMul || 0)));
 }
 

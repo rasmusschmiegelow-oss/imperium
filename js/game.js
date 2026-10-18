@@ -676,6 +676,7 @@ function cityStrength(c) {
   let s = 3 + c.pop * 0.6 + gs + eraB;
   if (civ(c.civ).minor) s += 4;
   if (cityHasWalls(c)) s *= 1.5;
+  if (c.soul === 'faestning') s *= 1.5;
   if (G.tiles[idx(c.x, c.y)].t === 'hills') s *= 1.15;
   s *= 1 + religionEffects(c).def;
   return s * (0.6 + 0.4 * c.hp / 100);
@@ -1026,7 +1027,7 @@ function routeValue(a, b) {
   return v;
 }
 function routesOf(c) { return G.routes.filter(r => r.a === c.id || r.b === c.id); }
-function maxRoutes(c) { return 1 + (policyFx(civ(c.civ)).maxRoutes || 0) + (c.blds.includes('market') ? 1 : 0) + (c.blds.includes('bank') ? 1 : 0); }
+function maxRoutes(c) { return 1 + (c.soul === 'handel' ? 1 : 0) + (policyFx(civ(c.civ)).maxRoutes || 0) + (c.blds.includes('market') ? 1 : 0) + (c.blds.includes('bank') ? 1 : 0); }
 function routeTrade(c) {
   let t = 0;
   for (const r of routesOf(c)) {
@@ -1233,7 +1234,7 @@ function processCity(c) {
       c.prod -= cost;
       if (b.key === 'settler') c.pop--;
       const air = UNITS[b.key].domain === 'air';
-      const u = createUnit(c.civ, b.key, c.x, c.y, air ? c.blds.includes('airport') : c.blds.includes('barracks') && isMil({ type: b.key }));
+      const u = createUnit(c.civ, b.key, c.x, c.y, air ? c.blds.includes('airport') : (c.blds.includes('barracks') || c.soul === 'faestning') && isMil({ type: b.key }));
       if (b.key === 'caravan') u.home = c.id;
       notify(cv.id, `${c.name} har færdiggjort: ${UNITS[b.key].name}.`, idx(c.x, c.y), 'good');
       c.build = null;
@@ -1623,6 +1624,7 @@ function beginCivTurn(cid) {
     }
     u.acted = false;
     u.moves = u.work ? 0 : maxMoves(u);
+    if (u.dazed) { u.moves = 0; delete u.dazed; }
     if (embarked(u)) u.moves = Math.min(u.moves, 2);
   }
   if (cv.barb) return;
@@ -1705,6 +1707,7 @@ function endTurn() {
   G.turn++;
   processUN();
   recordHistory();
+  recordReplay();
   const alive = G.humans.filter(id => civ(id).alive);
   for (const hh of alive) for (const o of majors()) if (o.id !== hh && G.ob[hh][o.id] === G.turn) notify(hh, `Aftalen om åbne grænser med ${o.name} er udløbet.`, null, 'info');
   checkVictory();

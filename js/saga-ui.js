@@ -74,7 +74,7 @@ Object.assign(UI, {
     const heroHtml = heroes.length ? `<div class="section-h">Levende helte</div><div class="heroes">${heroes.map(u => `<div class="hero"><b>${ART.miscGlyph('hero', 16)} ${esc(u.hero)}</b><span>${esc(UNITS[u.type].name)} · ${u.kills || 0} sejre</span><ul>${(u.saga || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>`).join('')}</div>` : '';
     const titled = civCities(h.id).filter(c => c.epithet);
     const cityHtml = titled.length ? `<div class="section-h">Byer med tilnavne</div><p>${titled.map(c => `<b>${esc(cityTitle(c))}</b>`).join(' · ')}</p>` : '';
-    return `<p class="sub">Sådan vil eftertiden fortælle om ${esc(h.name)} og den verden, I lever i.</p>${heroHtml}${cityHtml}
+    return `<div class="chron-h"><p class="sub">Sådan vil eftertiden fortælle om ${esc(h.name)} og den verden, I lever i.</p><button type="button" class="act ghost" id="rp-open">Se historien udfolde sig</button></div>${heroHtml}${cityHtml}
       <div class="chronicle">${groups.reverse().map(g => `<h4>${esc(ERAS[Math.min(g.era, ERAS.length - 1)] || '')}</h4>${g.items.slice().reverse().map(e => `<p class="${e.civ === h.id ? 'own' : ''} k-${e.kind}"><em>${yearLabel(e.turn)}</em> ${esc(e.text)}</p>`).join('')}`).join('')}</div>`;
   },
 

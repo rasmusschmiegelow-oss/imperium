@@ -11,6 +11,7 @@ function fxSources(cv) {
   for (const b of cv.boons || []) if (!b.until || b.until > G.turn) out.push(b);
   for (const k of cv.legends || []) if (LEGENDS[k].fx) out.push({ name: LEGENDS[k].name, fx: LEGENDS[k].fx });
   for (const s of factionFx(cv)) out.push(s);
+  if (cv.god && GODS[cv.god]) out.push({ name: `Skytsgud: ${GODS[cv.god].name}`, fx: GODS[cv.god].fx });
   return out;
 }
 function wondersOf(cid) { return Object.values(G.wonders).filter(id => { const c = cityById(id); return c && c.civ === cid; }).length; }
@@ -388,4 +389,5 @@ function ensureFolkState() {
   }
   if (!G.legends) placeLegends([...G.cities.map(c => idx(c.x, c.y)), ...G.units.filter(u => u.type === 'settler').map(u => idx(u.x, u.y))]);
   if (G.chronId == null) G.chronId = (G.chron || []).length;
+  ensureMythState();
 }

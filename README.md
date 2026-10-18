@@ -22,6 +22,11 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Togter og sagnsteder:** Atlantis, El Dorado, Valhallas Port, Avalon, Shangri-La og Yggdrasil ligger gemt på kortet. Rygter viser et søgeområde. Find stederne med en enhed, eller send et togt, hvor du træffer valg undervejs. Den, der kommer først, får gaven.
 - **Runesten:** rejs en runesten i en by med din egen indskrift. Den vises også med runer og giver kultur og tilfredshed.
 - **Skjalden:** de store øjeblikke vises som sagakort. I menuen kan du slå oplæsning på dansk til.
+- **Gudernes gunst:** vælg en skytsgud blandt Odin, Thor, Frej, Njord, Tyr og Loke. Guden giver en varig fordel. Gunst fra tro og blot bruges til mirakler som Tordenvejr, Rig høst, Medvind og Blændværk.
+- **Holmgang:** afgør en strid ved tvekamp. Din bedste kæmpe møder fjendens over tre runder (angreb slår list, list slår forsvar, forsvar slår angreb). Taberens kæmpe dør, og taberen betaler og slutter fred, hvis I er i krig.
+- **Byens sjæl:** når en by når 5 indbyggere, vælger du, hvad den skal være kendt for: handelsby, fæstningsby, lærdomsby, helligby, håndværkerby eller kornkammer.
+- **Rådet:** Kansleren, Hærføreren, Ypperstepræsten og Skjalden giver hver tur konkrete råd med et klik direkte til stedet.
+- **Historiens genspil:** under Riget → Krønike og på slutskærmen kan du se grænserne vokse og falde over hele spillet med krønikens begivenheder undervejs.
 - **Religion:** tro fra helligdomme, templer og Stonehenge. Grundlæg en af syv religioner med trosretninger, og spred den med missionærer og fra by til by.
 - **Forskning:** 37 teknologier fra Landbrug til Rumfart, vist i et teknologitræ med forbindelser.
 - **Militær:** landenheder, krigsskibe og indskibning. Med Sejlads sejler landenheder langs kysten, med Astronomi over åbent hav. Gamle enheder kan opgraderes for guld. Det er sværere at angribe over floder. Enheder samler erfaring og vælger forfremmelser som Stormtropper, Skovkæmper, Præcision og Felthospital.
@@ -73,8 +78,10 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - `js/saga-ui.js`: skærmbilleder til det samme
 - `js/folk.js`: profetier, magtfaktioner, sagnsteder, togter og runesten
 - `js/folk-ui.js`: skærmbilleder til det samme og skjalden
+- `js/myth.js`: guder og mirakler, holmgang, byens sjæl, Rådet og historiens genspil
+- `js/myth-ui.js`: skærmbilleder til det samme, bygget efter Paper-designet
 - `js/online.js`: onlinespil, lobby, chat, overtagelse og spillerkoder
-- `js/art.js`: grafikken fra Paper-filen "Imperium · Grafik" (stregikoner, terræn, byer og ressourcer)
+- `js/art.js`: grafikken fra Paper-filen "Imperium · Grafik". Al ny grafik tegnes i Paper først (siden "Design v2 · Runesten i måneskin") (stregikoner, terræn, byer og ressourcer)
 - `js/ui.js`: tegning af kortet, input, paneler, animationer og guide
 - `js/audio.js`: lydeffekter og musik med WebAudio
 

@@ -650,6 +650,7 @@ const UI = {
     $('#waiting').innerHTML = w ? `${w} ${w === 1 ? 'enhed venter' : 'enheder venter'} · <button type="button" id="btn-next">Næste</button>` : '';
     const bn = $('#btn-next'); if (bn) bn.onclick = () => this.selectNext();
     this.skaldCheck();
+    this.renderCouncil();
   },
 
   renderGuide() {
@@ -1000,6 +1001,12 @@ const UI = {
       ctx.strokeStyle = RELIGIONS[c.rel].color; ctx.lineWidth = Math.max(1, fs * 0.14); ctx.stroke();
       ART.misc(ctx, 'rel_' + c.rel, lx + total + fs * 0.25, ly + bh / 2, fs * 0.8);
     }
+    if (c.soul && SOULS[c.soul]) {
+      const sx = lx - fs * 0.35;
+      ctx.fillStyle = '#0f131a'; ctx.beginPath(); ctx.arc(sx, ly + bh / 2, fs * 0.6, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(226,182,92,.8)'; ctx.lineWidth = Math.max(1, fs * 0.1); ctx.stroke();
+      ART.misc(ctx, SOULS[c.soul].icon, sx, ly + bh / 2, fs * 0.85);
+    }
     ctx.fillStyle = cv.minor ? '#1b1408' : '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(c.pop), lx + popW / 2, ly + bh / 2 + 0.5);
     ctx.fillStyle = '#ece6d8'; ctx.textAlign = 'left';
@@ -1194,6 +1201,7 @@ const UI = {
         ${group('unit', 'Enheder')}${group('bld', 'Bygninger')}${group('wonder', 'Vidundere')}${group('proj', 'Projekter')}
         <div class="section-h">Handelsruter (${routesOf(c).length}/${maxRoutes(c)})</div>
         <div class="chips">${routes || '<span style="color:var(--muted)">Ingen endnu. Byg en karavane, og send den til en by mindst 6 felter væk.</span>'}</div>
+        ${c.soul ? `<div class="soulline" style="--gc:${MISC_COLOR(SOULS[c.soul].icon)}">${ART.miscGlyph(SOULS[c.soul].icon, 26)}<div><b>${esc(SOULS[c.soul].name)}</b><em>${esc(SOULS[c.soul].desc)}</em></div></div>` : ''}
         <div class="section-h">Runesten</div>
         ${this.runeHtml(c)}
         <div class="section-h">I byen</div>
@@ -1340,14 +1348,16 @@ const UI = {
 
   openRealm(tab) {
     this.realmTab = tab || this.realmTab || 'gov';
-    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['society', 'Samfund', 'pol_tradition'], ['folk', 'Folket', 'fac_warriors'], ['chronicle', 'Krønike', 'chronicle'], ['legends', 'Togter', 'leg_compass'], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
-    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'society' ? this.societyHtml() : this.realmTab === 'chronicle' ? this.chronicleHtml() : this.realmTab === 'folk' ? this.folkHtml() : this.realmTab === 'legends' ? this.legendsHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
-    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory' || this.realmTab === 'society' || this.realmTab === 'chronicle' || this.realmTab === 'folk' || this.realmTab === 'legends');
+    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['society', 'Samfund', 'pol_tradition'], ['folk', 'Folket', 'fac_warriors'], ['chronicle', 'Krønike', 'chronicle'], ['legends', 'Togter', 'leg_compass'], ['gods', 'Guderne', 'god_odin'], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
+    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'society' ? this.societyHtml() : this.realmTab === 'chronicle' ? this.chronicleHtml() : this.realmTab === 'folk' ? this.folkHtml() : this.realmTab === 'legends' ? this.legendsHtml() : this.realmTab === 'gods' ? this.godsHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
+    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory' || this.realmTab === 'society' || this.realmTab === 'chronicle' || this.realmTab === 'folk' || this.realmTab === 'legends' || this.realmTab === 'gods');
     bg.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => this.openRealm(b.dataset.tab));
     if (this.realmTab === 'gov') this.bindGov(bg);
     if (this.realmTab === 'religion') this.bindReligion(bg);
     if (this.realmTab === 'society') this.bindSociety(bg);
     if (this.realmTab === 'legends') this.bindLegends(bg);
+    if (this.realmTab === 'gods') this.bindGods(bg);
+    if (this.realmTab === 'chronicle') { const rb = bg.querySelector('#rp-open'); if (rb) rb.onclick = () => this.openReplay(); }
     if (this.realmTab === 'stats') this.bindStats(bg);
   },
 
@@ -1524,7 +1534,7 @@ const UI = {
         <div class="meta">${civCities(c.id).length} byer · militært ${mil} · ${score(c.id)} point · ${c.techs.length} teknologier · ${esc(gov(c).name)}${c.policies && c.policies.length ? ` · ${c.policies.length} politikker` : ''}${inGoldenAge(c) ? ' · guldalder' : ''}</div>
         <div class="said">“${esc(leaderLine(c, h.id))}”</div>
         ${at.reasons.length ? `<div class="reasons">${at.reasons.slice(0, 4).map(r => `<span class="${r[1] > 0 ? 'p' : 'n'}">${r[1] > 0 ? '+' : ''}${r[1]} ${esc(r[0])}</span>`).join('')}</div>` : ''}</div>
-        <div class="btns">${war ? '' : `<button type="button" class="act" data-trade="${c.id}">${this.diploOpen[c.id] ? 'Luk forhandling' : 'Forhandl'}</button>`}${btn}</div></div>${tradeBlock(c)}`;
+        <div class="btns">${war ? '' : `<button type="button" class="act" data-trade="${c.id}">${this.diploOpen[c.id] ? 'Luk forhandling' : 'Forhandl'}</button>`}${holmgangOk(h.id, c.id) ? '' : `<button type="button" class="act ghost" data-holm="${c.id}" title="Afgør striden ved tvekamp">Holmgang</button>`}${btn}</div></div>${tradeBlock(c)}`;
     }).join('');
     const minors = G.civs.filter(m => m.minor);
     const mrows = minors.map(m => {
@@ -1545,6 +1555,7 @@ const UI = {
       ${minors.length ? `<div class="section-h">Bystater</div><div class="diplo">${mrows}</div>` : ''}
       <div class="section-h">Seneste begivenheder</div><div class="log">${(human().log || G.log).slice(-40).reverse().map(e => `<div class="${e.kind}"><em>Tur ${e.turn}</em>${esc(e.text)}</div>`).join('') || '<div>Intet endnu.</div>'}</div>`, '', true);
     const reopen = () => { const sc = bg.querySelector('.body').scrollTop; this.openDiplo(); const nb = document.querySelector('.modal-bg .body'); if (nb) nb.scrollTop = sc; this.refresh(); };
+    bg.querySelectorAll('[data-holm]').forEach(b => b.onclick = () => { const id = +b.dataset.holm; const r = this.startHolmgang(id); if (!r.ok) { say(id, false, r.text); reopen(); } });
     bg.querySelectorAll('[data-trade]').forEach(b => b.onclick = () => { const id = +b.dataset.trade; this.diploOpen[id] = !this.diploOpen[id]; this.diploMsg[id] = null; reopen(); });
     const say = (id, ok, text) => { this.diploMsg[id] = { ok, text }; };
     bg.querySelectorAll('[data-deal]').forEach(b => b.onclick = () => {
@@ -1613,6 +1624,9 @@ const UI = {
     if (o.type === 'event') return this.showEvent(o);
     if (o.type === 'heir') return this.showHeir(o);
     if (o.type === 'prophecy') return this.showProphecy(o);
+    if (o.type === 'gods') return this.showGods(o);
+    if (o.type === 'soul') return this.showSoul(o);
+    if (o.type === 'holmgang') return this.showHolmOffer(o);
     const c = civ(o.from);
     const h = human();
     if (!c.alive) return false;
@@ -1714,7 +1728,8 @@ const UI = {
     }
     text = text.replace(/\.\./g, '.');
     const bg = this.modal(title, `<div class="gameover"><p class="go-lede">${esc(text)}</p>${this.legacyHtml(h)}<p class="sub">Dine point: <b>${score(h.id)}</b> · tur ${G.turn}</p><div class="chart">${this.chartSvg('s', true)}</div></div>`,
-      `<button type="button" class="act" id="g-look">Se kortet</button><button type="button" class="act" id="g-chron">Læs krøniken</button><button type="button" class="act primary" id="g-new">Nyt spil</button>`, true);
+      `<button type="button" class="act" id="g-look">Se kortet</button><button type="button" class="act" id="g-chron">Læs krøniken</button><button type="button" class="act ghost" id="g-replay">Se historien</button><button type="button" class="act primary" id="g-new">Nyt spil</button>`, true);
+    bg.querySelector('#g-replay').onclick = () => { this.afterModal = () => this.showGameOver(); this.openReplay(); };
     bg.querySelector('#g-chron').onclick = () => { this.afterModal = () => this.showGameOver(); this.openRealm('chronicle'); };
     bg.querySelector('#g-new').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ingen lager */ } location.reload(); };
     bg.querySelector('#g-look').onclick = () => { G.explored.fill(1); updateVisibility(); this.closeModal(); this.dirty(); };

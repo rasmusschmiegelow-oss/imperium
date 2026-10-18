@@ -121,6 +121,7 @@ function societyCity(c, cv) {
   r.f += (c.fertile || 0) + (f.cityFood || 0);
   if (c.rune) r.culture += 2;
   crisisCity(c, r);
+  soulCity(c, r);
   return r;
 }
 function societyHappy(c, cv, src) {
@@ -385,6 +386,7 @@ function societyTurn(cv, culture) {
   rollEvent(cv);
   sagaTurn(cv);
   folkTurn(cv);
+  mythTurn(cv);
 }
 function ensureSocietyState() {
   for (const cv of G.civs) {
