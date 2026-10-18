@@ -6,8 +6,8 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 
 ## Indhold
 
-- **Verden:** tilfældige sekskantskort, der går rundt som en globus, med korttyperne Kontinenter, Pangæa og Øer. Kortene har floder, ressourcer, luksusvarer og krigståge.
-- **Byer:** byerne vokser, producerer og udvider deres grænser. Du kan vælge fokus (mad, produktion, handel) og låse de felter, indbyggerne arbejder på.
+- **Verden:** tilfældige sekskantskort, der går rundt som en globus, med korttyperne Kontinenter, Pangæa og Øer. Der er også et kort over Jorden, hvor folkene starter omtrent, hvor de hører hjemme. Kortene har floder, ressourcer, luksusvarer og krigståge.
+- **Byer:** byerne vokser, producerer og udvider deres grænser. Du kan vælge fokus (mad, produktion, handel) og låse de felter, indbyggerne arbejder på. Hver by har en produktionskø, så du kan sætte flere ting i gang efter hinanden.
 - **Tilfredshed:** utilfredse indbyggere arbejder ikke. Templer, markeder, arenaer, katedraler, garnisoner og luksusvarer holder byerne glade, mens store riger bliver sværere at styre.
 - **Regeringsformer:** Despoti, Monarki, Republik, Demokrati og Kommunisme, hver med sine fordele og ulemper. Et skifte koster et par ture med anarki.
 - **Religion:** tro fra helligdomme, templer og Stonehenge. Grundlæg en af syv religioner med trosretninger, og spred den med missionærer og fra by til by.
@@ -16,16 +16,18 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Luftkrig:** jagerfly, bombefly og luftværn. Fly står i byer, angriber på lang afstand, kan omplaceres og kan blive opsnappet.
 - **Strategiske ressourcer:** heste, jern, kul og olie på dit land kræves til bestemte enheder, fx ryttere, sværdkæmpere, jernklædte og kampvogne.
 - **Udforskning:** ruiner giver guld, teknologi, kort eller nye enheder, og naturvidundere som Uluru, Kilimanjaro og Fuji giver store fordele.
+- **Automatisering:** enheder kan udforske af sig selv eller stå vagt og vække dig, når en fjende kommer tæt på.
+- **Spionage:** spioner kan stjæle teknologi, sabotere produktion og skabe uro i fremmede byer. Dine egne byer og spioner kan fange fjendens spioner.
 - **Store personligheder:** videnskabsmand, købmand, ingeniør og general.
 - **Handel:** karavaner opretter handelsruter mellem byer, og du kan købe og sælge teknologi med andre folk.
 - **Diplomati:** krig og fred med 1–6 computermodstandere, der samler hære, bygger veje og kommer med tilbud. De husker, hvad du har gjort, og har en holdning til dig. I kan indgå åbne grænser, forsvarspagter og fælles krig, og de kan stille krav. Bystater kan blive dine venner eller allierede, hvis du giver dem gaver.
 - **Barbarer:** barbarer angriber fra lejre i tomme områder. Hvis du ødelægger en lejr, får du guld.
 - **Oplevelse:** du kan se modstandernes træk som animation. Spillet har lydeffekter og generativ musik, en guide de første ture og virker på mobil.
-- **Sejr:** ved erobring, rumskib, kultur, diplomati (afstemning i De Forenede Nationer) eller på point efter tur 400. Fremskridt for alle folk vises under Riget → Sejr.
+- **Sejr:** ved erobring, rumskib, kultur, diplomati (afstemning i De Forenede Nationer) eller på point, når den sidste tur er spillet. Du vælger på startskærmen, hvilke sejrsformer der gælder, og om spillet skal have hurtigt (270 ture), normalt (400) eller episk (600) tempo. Fremskridt for alle folk vises under Riget → Sejr.
 - **Statistik:** grafer over point, militær, teknologi, befolkning og kultur, plus en demografitabel.
 - **Gemte spil:** spillet gemmes automatisk. Der er også tre gemmepladser, og spillet kan gemmes som fil og hentes ind igen.
 - **Flere spillere:** 2–4 spillere kan spille ved samme skærm, hver med sin egen krigståge og sine egne beskeder.
-- **Online:** under Spil online opretter du et spil og får en kode på 5 tegn, som dine venner bruger til at deltage. I spiller tur for tur fra hver jeres enhed, og man får besked i realtid, når det er ens tur. Spillet gemmes i Supabase.
+- **Online:** under Spil online opretter du et spil og får en kode på 5 tegn, som dine venner bruger til at deltage. I spiller tur for tur fra hver jeres enhed, og man får besked i realtid, når det er ens tur. Spillet gemmes i Supabase. I spillet er der chat, besked i browseren, når det er din tur, og værten kan lade computeren styre en spiller, der er væk. Med din personlige spillerkode kan du fortsætte på en anden enhed under Spil online → Fortsæt på denne enhed.
 
 ## Styring
 
@@ -49,6 +51,8 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - `js/ai.js`: hvad computermodstanderne, bystaterne og barbarerne beslutter
 - `js/realm.js`: regeringsformer, erfaring og forfremmelser, ruiner, naturvidundere, strategiske ressourcer og diplomatiske relationer
 - `js/world.js`: religion, luftkrig, sejr ved kultur og diplomati, historik og demografi
+- `js/extra.js`: produktionskø, automatisering, spionage, spiltempo, sejrsvalg og kortet over Jorden
+- `js/online.js`: onlinespil, lobby, chat, overtagelse og spillerkoder
 - `js/art.js`: grafikken fra Paper-filen "Imperium · Grafik" (stregikoner, terræn, byer og ressourcer)
 - `js/ui.js`: tegning af kortet, input, paneler, animationer og guide
 - `js/audio.js`: lydeffekter og musik med WebAudio
@@ -57,6 +61,6 @@ Al grafik tegnes gennem `ART` i `js/ui.js`. Du kan sætte rigtige sprites ind ve
 
 ## Online (Supabase)
 
-Online-spil bruger et Supabase-projekt med anonymt login. Databasen sættes op ved at køre `supabase/schema.sql` i Supabase → SQL Editor. Adressen og den offentlige nøgle står øverst i `js/online.js`. Nøglen er beregnet til at ligge i en hjemmeside, og databasens regler sørger for, at kun spillerne i et spil kan se det, og at kun den spiller, der er i tur, kan gemme.
+Online-spil bruger et Supabase-projekt med anonymt login. Databasen sættes op ved at køre `supabase/schema.sql` og derefter `supabase/online2.sql` i Supabase → SQL Editor. Adressen og den offentlige nøgle står øverst i `js/online.js`. Nøglen er beregnet til at ligge i en hjemmeside, og databasens regler sørger for, at kun spillerne i et spil kan se det, og at kun den spiller, der er i tur, kan gemme.
 
 Alle spilleres browsere får hele spillet, så en spiller med teknisk snilde kan i princippet se bag krigstågen.

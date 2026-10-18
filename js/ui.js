@@ -103,7 +103,7 @@ const UI = {
       const humans = [chosen];
       for (let k = 2; k <= n; k++) { const v = $('#opt-p' + k).value; if (!humans.includes(v)) humans.push(v); }
       const opts = { civ: chosen, humans, opponents: Math.min(+$('#opt-opp').value, CIVS.length - humans.length), size: $('#opt-size').value, difficulty: $('#opt-diff').value,
-        mapType: $('#opt-map').value, minors: mv === 'auto' ? undefined : +mv, tutorial: $('#opt-guide').checked };
+        mapType: $('#opt-map').value, minors: mv === 'auto' ? undefined : +mv, tutorial: $('#opt-guide').checked, pace: $('#opt-pace').value, victories: this.victoryChoice() };
       newGame(opts);
       this.enterGame();
       for (const id of G.humans) notify(id, `Velkommen, hersker over ${civ(id).name}. Grundlæg din første by med bosætteren (tast B).`, null, 'good');
@@ -134,6 +134,8 @@ const UI = {
     this.selectNext(true);
     this.refresh();
   },
+
+  victoryChoice() { const v = {}; for (const k of Object.keys(VICTORY_TYPES)) v[k] = $('#v-' + k).checked; return v; },
 
   // Skærm mellem spillerne ved samme skærm
   showHandover(first) {
@@ -287,7 +289,7 @@ const UI = {
       if (k === 'd' || k === 'D') { this.openDiplo(); return; }
       if (k === 'n' || k === 'N' || k === 'Tab') { e.preventDefault(); this.selectNext(); return; }
       if (!u) return;
-      const map = { p: 'spread', P: 'spread', ' ': 'skip', f: 'fort', F: 'fort', b: 'found', B: 'found', i: 'farm', I: 'farm', m: 'mine', M: 'mine', r: 'road', R: 'road', c: 'chop', C: 'chop', a: 'auto', A: 'auto', Delete: 'disband', Backspace: 'disband', h: 'home', H: 'home', u: 'upgrade', U: 'upgrade', g: 'gp', G: 'gp', e: 'route', E: 'route' };
+      const map = { x: 'explore', X: 'explore', v: 'sentry', V: 'sentry', p: 'spread', P: 'spread', ' ': 'skip', f: 'fort', F: 'fort', b: 'found', B: 'found', i: 'farm', I: 'farm', m: 'mine', M: 'mine', r: 'road', R: 'road', c: 'chop', C: 'chop', a: 'auto', A: 'auto', Delete: 'disband', Backspace: 'disband', h: 'home', H: 'home', u: 'upgrade', U: 'upgrade', g: 'gp', G: 'gp', e: 'route', E: 'route' };
       if (map[k]) { e.preventDefault(); this.doAction(map[k]); }
     });
   },
@@ -436,7 +438,7 @@ const UI = {
   },
 
   needsOrders(u) {
-    return u.civ === G.human && u.moves > 0 && !u.fort && !u.sleep && !u.work && !u.path && !u.auto && !this.skip.has(u.id);
+    return u.civ === G.human && u.moves > 0 && !u.fort && !u.sleep && !u.work && !u.path && !u.auto && !u.explore && !u.sentry && !this.skip.has(u.id);
   },
   waitingUnits() { return civUnits(G.human).filter(u => this.needsOrders(u)); },
   selectNext(silent) {
@@ -453,7 +455,7 @@ const UI = {
     const u = this.selUnit(); if (!u) return;
     if (a === 'skip') { this.skip.add(u.id); this.selectNext(); return; }
     if (a === 'fort') { if (!isMil(u)) u.sleep = true; else u.fort = true; u.path = null; this.selectNext(); return; }
-    if (a === 'cancel') { u.path = null; u.auto = false; u.work = null; u.fort = false; u.sleep = false; this.select(u); return; }
+    if (a === 'cancel') { u.path = null; u.auto = false; u.work = null; u.fort = false; u.sleep = false; u.explore = false; u.sentry = false; this.select(u); return; }
     if (a === 'found') {
       if (canFoundCity(u)) { const c = foundCity(u); this.sel = null; this.refresh(); this.openCity(c); }
       else notify(G.human, 'Her kan du ikke grundlægge en by. Den skal ligge på land, mindst 3 felter fra andre byer og ikke på fremmed jord.', null, 'warn');
@@ -466,6 +468,9 @@ const UI = {
       if (c) { const p = findPath(u, idx(c.x, c.y)); if (p) { u.path = p; followPath(u); this.afterAction(u); } }
       return;
     }
+    if (a.startsWith('spy:')) { const r = spyMission(u, a.slice(4)); if (r) { SFX.play(r.ok ? 'tech' : 'bad'); this.sel = null; this.selectNext(); this.refresh(); } return; }
+    if (a === 'explore') { u.explore = true; u.fort = false; u.sentry = false; autoExplore(u); this.afterAction(u); this.selectNext(); return; }
+    if (a === 'sentry') { u.sentry = true; u.fort = true; u.path = null; this.selectNext(); return; }
     if (a === 'spread') { if (spreadReligion(u)) { SFX.play('tech'); if (G.units.includes(u)) this.select(u); else { this.sel = null; this.selectNext(); } } return; }
     if (a.startsWith('promo:')) { if (applyPromo(u, a.slice(6))) { SFX.play('tech'); this.select(u); } return; }
     if (a === 'upgrade') { if (canUpgrade(u)) { doUpgrade(u); SFX.play('coin'); this.afterAction(u); } return; }
@@ -654,7 +659,7 @@ const UI = {
       const cv = civ(u.civ);
       const own = u.civ === G.human;
       const status = u.work ? `${WORKS[u.work.kind].name.replace('Byg ', 'Bygger ').replace('Ryd', 'Rydder')} · ${u.work.left} ${u.work.left === 1 ? 'tur' : 'ture'} tilbage`
-        : u.fort ? 'Befæstet' : u.sleep ? 'Sover' : u.auto ? 'Automatiseret' : u.path ? `På vej · ${pathTurns(u, u.path)} ture` : embarked(u) ? 'Indskibet: svagt forsvar, kan ikke angribe' : '';
+        : u.explore ? 'Udforsker automatisk' : u.sentry ? 'Står vagt' : u.fort ? 'Befæstet' : u.sleep ? 'Sover' : u.auto ? 'Automatiseret' : u.path ? `På vej · ${pathTurns(u, u.path)} ture` : embarked(u) ? 'Indskibet: svagt forsvar, kan ikke angribe' : '';
       const acts = [];
       const A = (key, label, kbd, enabled = true, cls = '', title = '') => `<button type="button" class="act ${cls}" data-a="${key}" ${enabled ? '' : 'disabled'} ${title ? `title="${esc(title)}"` : ''}>${label}${kbd ? ` <kbd>${kbd}</kbd>` : ''}</button>`;
       let extra = '';
@@ -694,10 +699,18 @@ const UI = {
         if (isMil(u) && promoPending(u)) {
           extra += `<div class="section-h" style="margin-top:12px">Vælg forfremmelse</div><div class="actions-row">${promoOptions(u).map(k => `<button type="button" class="act promo" data-a="promo:${k}" title="${esc(PROMOS[k].desc)}">${ART.miscGlyph('promo', 16)} ${esc(PROMOS[k].name)} <span class="pd">${esc(PROMOS[k].desc)}</span></button>`).join('')}</div>`;
         }
+        if (isSpy(u)) {
+          const t = spyTarget(u);
+          if (t) {
+            extra += `<div class="section-h" style="margin-top:12px">Spionage i ${esc(t.name)}${counterSpy(t) ? ' · byen har en modspion' : ''}</div><div class="actions-row">${Object.keys(SPY_MISSIONS).map(m => `<button type="button" class="act" data-a="spy:${m}" ${spyMissionOk(u, t, m) ? '' : 'disabled'} title="${m === 'steal' && !stealable(u, t).length ? 'De kender intet, du mangler' : m === 'sabotage' && !(t.build && t.prod > 10) ? 'Byen har ikke noget i gang' : ''}">${ART.miscGlyph(SPY_MISSIONS[m].icon, 16)} ${SPY_MISSIONS[m].name} · ${Math.round(spyChance(u, t, m) * 100)} %</button>`).join('')}</div><p class="hint-s">Spionen bruges op, uanset om missionen lykkes. Bliver den afsløret, husker ${esc(civ(t.civ).name)} det.</p>`;
+          } else extra += `<div class="sub" style="margin-top:8px">Gå hen til en fremmed by for at spionere. Står spionen i din egen by, beskytter den mod fjendtlige spioner.</div>`;
+        }
+        if (isMil(u) && !isAir(u)) acts.push(A('explore', u.explore ? 'Udforsker …' : 'Udforsk automatisk', 'X', !u.explore));
+        if (isMil(u) && !isAir(u)) acts.push(A('sentry', 'Vagt', 'V', !u.sentry, '', 'Stå stille, og vågn, når en fjende kommer inden for 3 felter'));
         if (isMil(u)) acts.push(A('fort', 'Befæst', 'F', !u.fort));
         else acts.push(A('fort', 'Sov', 'F', !u.sleep));
         acts.push(A('skip', 'Spring over', 'Mellemrum', u.moves > 0));
-        if (u.path || u.auto || u.work || u.fort || u.sleep) acts.push(A('cancel', 'Ny ordre', ''));
+        if (u.path || u.auto || u.work || u.fort || u.sleep || u.explore || u.sentry) acts.push(A('cancel', 'Ny ordre', ''));
         acts.push(A('home', 'Til nærmeste by', 'H', u.moves > 0));
         acts.push(A('disband', this.confirmDisband ? 'Bekræft opløsning' : 'Opløs', '', true, 'danger'));
       }
@@ -1123,9 +1136,9 @@ const UI = {
         const on = c.build && c.build.kind === o.kind && c.build.key === o.key;
         const cst = buildCost(o);
         const reason = !o.ok ? (o.reason || (o.key === 'settler' ? 'Kræver 2 indbyggere' : 'Bygges allerede')) : '';
-        return `<button type="button" class="bopt ${on ? 'on' : ''}" data-k="${o.kind}:${o.key}" ${o.ok ? '' : 'disabled'}>
+        return `<div class="bwrap"><button type="button" class="bopt ${on ? 'on' : ''}" data-k="${o.kind}:${o.key}" ${o.ok ? '' : 'disabled'}>
           <span class="g">${glyphFor(o)}</span><span><span class="n">${esc(buildName(o))}</span><span class="d">${esc(reason || descFor(o))}</span></span>
-          <span class="c">${o.key === 'wealth' ? '' : `${cst} · ${turns(o)} t`}</span></button>`;
+          <span class="c">${o.key === 'wealth' ? '' : `${cst} · ${turns(o)} t`}</span></button>${o.key === 'wealth' ? '' : `<button type="button" class="qadd" data-q="${o.kind}:${o.key}" title="Sæt i kø" aria-label="Sæt ${esc(buildName(o))} i kø">+</button>`}</div>`;
       }).join('')}</div>`;
     };
     const wondersHere = Object.entries(G.wonders).filter(([, id]) => id === c.id).map(([k]) => WONDERS[k].name);
@@ -1155,6 +1168,7 @@ const UI = {
           ${c.build && c.build.key !== 'wealth' ? `<div class="progress"><span style="width:${clamp(c.prod / cost * 100, 0, 100)}%"></span></div>` : ''}
           ${c.build && isFinite(bc) && c.build.key !== 'wealth' ? `<div><button type="button" class="act ${cv.gold >= bc ? 'primary' : ''}" id="buy" ${cv.gold >= bc ? '' : 'disabled'}>Køb nu for ${bc} guld</button></div>` : ''}
         </div>
+        ${(c.queue || []).length ? `<div class="queue"><span class="label">${ART.miscGlyph('queue', 14)} Derefter</span>${c.queue.map((q, n) => `<span class="chip">${n + 1}. ${esc(buildName(q))} <button type="button" class="qdel" data-qd="${n}" aria-label="Fjern fra kø">×</button></span>`).join('')}</div>` : `<p class="hint-s">Tryk på + ud for en mulighed for at sætte den i kø.</p>`}
         ${group('unit', 'Enheder')}${group('bld', 'Bygninger')}${group('wonder', 'Vidundere')}${group('proj', 'Projekter')}
         <div class="section-h">Handelsruter (${routesOf(c).length}/${maxRoutes(c)})</div>
         <div class="chips">${routes || '<span style="color:var(--muted)">Ingen endnu. Byg en karavane, og send den til en by mindst 6 felter væk.</span>'}</div>
@@ -1169,6 +1183,8 @@ const UI = {
       this.refresh();
     });
     d.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { c.focus = b.dataset.f; assignAllTiles(); this.refresh(); });
+    d.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { const [kind, key] = b.dataset.q.split(':'); queueAdd(c, { kind, key }); this.refresh(); });
+    d.querySelectorAll('[data-qd]').forEach(b => b.onclick = () => { c.queue.splice(+b.dataset.qd, 1); this.refresh(); });
     const un = d.querySelector('#unlock'); if (un) un.onclick = () => { c.locked = []; assignAllTiles(); this.refresh(); };
     const bm = d.querySelector('#buymis'); if (bm) bm.onclick = () => { const u = buyMissionary(c); if (u) { SFX.play('tech'); notify(G.human, `En missionær er klar i ${c.name}.`, idx(c.x, c.y), 'good'); this.refresh(); } };
     const buy = d.querySelector('#buy');
@@ -1350,17 +1366,17 @@ const UI = {
       const sp = c.techs.includes('spaceflight') ? 1 : c.techs.includes('rocketry') ? 0.6 : Math.min(0.5, c.techs.length / Object.keys(TECHS).length * 0.5);
       const ship = civCities(c.id).find(x => x.build && x.build.key === 'spaceship');
       return `<tr><td><i style="background:${c.color}"></i>${esc(c.name)}</td>
-        <td>${bar(cultureProgress(c.id), '#c99ae6')}<span>${Math.round(c.cultureTotal)}/${VICTORY.culture} · ${cultureWonders(c.id)}/${VICTORY.cultureWonders} vidundere</span></td>
+        <td>${bar(cultureProgress(c.id), '#c99ae6')}<span>${Math.round(c.cultureTotal)}/${cultureGoal()} · ${cultureWonders(c.id)}/${VICTORY.cultureWonders} vidundere</span></td>
         <td>${bar(ship ? 0.8 + 0.2 * ship.prod / PROJECTS.spaceship.cost : sp, '#72b6ea')}<span>${ship ? 'Bygger rumskib' : c.techs.includes('spaceflight') ? 'Kan bygge rumskib' : `${c.techs.length} teknologier`}</span></td>
         <td>${f.cands.includes(c.id) ? `<b>${f.votes[c.id]}</b>/${f.need} stemmer` : '–'}</td>
         <td>${score(c.id)}</td></tr>`;
     }).join('');
     return `<div class="vtypes">
-      <div>${ART.miscGlyph('v_conquest', 28)}<b>Erobring</b><span>Vær den sidste stormagt tilbage. ${alive - 1} rivaler er tilbage.</span></div>
-      <div>${ART.miscGlyph('spaceship', 28)}<b>Rumskib</b><span>Forsk i Rumfart, og byg rumskibet (${PROJECTS.spaceship.cost} produktion).</span></div>
-      <div>${ART.miscGlyph('v_culture', 28)}<b>Kultur</b><span>Saml ${VICTORY.culture.toLocaleString('da-DK')} kultur, og ej ${VICTORY.cultureWonders} vidundere.</span></div>
-      <div>${ART.miscGlyph('v_diplo', 28)}<b>Diplomati</b><span>${G.wonders.un != null ? `De Forenede Nationer er bygget af ${esc(civ(unOwner()).name)}. Næste afstemning i tur ${G.un.next || '?'}.` : 'Byg De Forenede Nationer (Computere), og vind en afstemning med flertal.'}</span></div>
-      <div>${ART.miscGlyph('v_points', 28)}<b>Point</b><span>Flest point efter tur 400. Der er ${Math.max(0, 401 - G.turn)} ture tilbage.</span></div>
+      <div>${ART.miscGlyph('v_conquest', 28)}<b>Erobring</b><span>${victoryOn('conquest') ? `Vær den sidste stormagt tilbage. ${alive - 1} rivaler er tilbage.` : 'Slået fra i dette spil.'}</span></div>
+      <div>${ART.miscGlyph('spaceship', 28)}<b>Rumskib</b><span>${victoryOn('space') ? `Forsk i Rumfart, og byg rumskibet (${buildCost({ kind: 'proj', key: 'spaceship' })} produktion).` : 'Slået fra i dette spil.'}</span></div>
+      <div>${ART.miscGlyph('v_culture', 28)}<b>Kultur</b><span>${victoryOn('culture') ? `Saml ${cultureGoal().toLocaleString('da-DK')} kultur, og ej ${VICTORY.cultureWonders} vidundere.` : 'Slået fra i dette spil.'}</span></div>
+      <div>${ART.miscGlyph('v_diplo', 28)}<b>Diplomati</b><span>${!victoryOn('diplo') ? 'Slået fra i dette spil.' : G.wonders.un != null ? `De Forenede Nationer er bygget af ${esc(civ(unOwner()).name)}. Næste afstemning i tur ${G.un.next || '?'}.` : 'Byg De Forenede Nationer (Computere), og vind en afstemning med flertal.'}</span></div>
+      <div>${ART.miscGlyph('v_points', 28)}<b>Point</b><span>Flest point efter tur ${maxTurns()} (${PACES[G.pace || 'standard'].name.toLowerCase()} tempo). Der er ${Math.max(0, maxTurns() + 1 - G.turn)} ture tilbage.</span></div>
     </div>
     <div class="scroll-x"><table class="vtable"><thead><tr><th>Folk</th><th>Kultur</th><th>Rumkapløb</th><th>FN</th><th>Point</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${unknown ? `<p class="sub">${unknown} folk, du ikke har mødt, vises ikke.</p>` : ''}`;
@@ -1619,7 +1635,7 @@ const UI = {
       <dt>Kort</dt><dd>Kortet går rundt som en globus. Træk for at panorere, rul eller knib for at zoome, piletaster flytter kortet.</dd>
       <dt>Byer</dt><dd>Åbn en by for at vælge produktion og fokus. Klik på felterne omkring byen for at låse, hvor indbyggerne arbejder. Utilfredse indbyggere arbejder ikke.</dd>
       <dt>Taster</dt><dd>Enter afslut tur · N næste enhed · Mellemrum spring over · F befæst · B grundlæg by · I farm · M mine · R vej · C ryd skov · A automatisér · H til nærmeste by · U opgradér · G brug stor personlighed · E handelsrute · T teknologi · D diplomati</dd>
-      <dt>Sejr</dt><dd>Erobring, rumskib, kultur (${VICTORY.culture.toLocaleString('da-DK')} kultur og ${VICTORY.cultureWonders} vidundere) eller diplomati (flertal i De Forenede Nationer). Efter tur 400 vinder højeste pointtal. Se fremskridt under Riget → Sejr.</dd>
+      <dt>Sejr</dt><dd>Erobring, rumskib, kultur (${cultureGoal().toLocaleString('da-DK')} kultur og ${VICTORY.cultureWonders} vidundere) eller diplomati (flertal i De Forenede Nationer), hvis de er slået til. Efter tur ${maxTurns()} vinder højeste pointtal. Se fremskridt under Riget → Sejr.</dd>
       <dt>Religion og fly</dt><dd>Tro fra helligdomme og templer lader dig grundlægge en religion og købe missionærer (tast P for at prædike). Fly står i byer: klik på et mål for at angribe eller på en by for at omplacere.</dd>
       <dt>Gemning</dt><dd>Spillet gemmes automatisk i denne browser efter hver tur.</dd>
     </dl>

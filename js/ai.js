@@ -81,6 +81,8 @@ function aiChooseBuild(c) {
     if (sh && cityCoastal(c) && ships < Math.ceil(cs.filter(cityCoastal).length * 0.7) && Math.random() < 0.3) return set('unit', sh);
     return set('unit', bestUnitFor(cv, 'atk'));
   }
+  const spies = us.filter(isSpy).length + cs.filter(o => o.build && o.build.key === 'spy').length;
+  if (has('unit', 'spy') && spies < 1 + Math.floor(cs.length / 4) && Math.random() < 0.15) return set('unit', 'spy');
   if (has('unit', 'caravan') && caravans < 1 && cs.length >= 2 && routesOf(c).length < maxRoutes(c) && Math.random() < 0.25) return set('unit', 'caravan');
   if (!war && mil < cs.length * 1.5 + eraOf(cv) && Math.random() < 0.5 * cv.aggression) return set('unit', bestUnitFor(cv, Math.random() < 0.5 ? 'atk' : 'def'));
   const sh = bestShip(cv);
@@ -253,6 +255,7 @@ function aiPlay(cv) {
     else if (u.type === 'caravan') aiCaravan(u);
     else if (UNITS[u.type].gp) aiGreatPerson(u, cv);
     else if (u.type === 'missionary') aiMissionary(u);
+    else if (isSpy(u)) aiSpy(u, cv);
     else if (isAir(u)) aiAir(u, cv);
     else if (isSea(u)) aiShip(u, cv);
     else aiMilitary(u, cv, garrisonIds.has(u.id));

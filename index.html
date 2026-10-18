@@ -41,6 +41,7 @@
 <div id="tooltip" hidden></div>
 <section id="handover" hidden></section>
 <div id="online-bar" hidden></div>
+<div id="chat" hidden><header><b>Chat</b><button type="button" class="x" aria-label="Luk chat">×</button></header><div class="chat-log"></div><form><input maxlength="300" placeholder="Skriv en besked …" aria-label="Besked"><button type="submit" class="act primary">Send</button></form></div>
 <div id="busy" hidden><span>Modstanderne trækker …</span></div>
 <div id="modal-root"></div>
 
@@ -67,11 +68,17 @@
           <select id="opt-diff"><option value="easy">Let</option><option value="normal" selected>Normal</option><option value="hard">Svær</option></select>
         </label>
         <label class="field" for="opt-map"><span class="label">Korttype</span>
-          <select id="opt-map"><option value="continents" selected>Kontinenter</option><option value="pangaea">Pangæa</option><option value="islands">Øer</option></select>
+          <select id="opt-map"><option value="continents" selected>Kontinenter</option><option value="pangaea">Pangæa</option><option value="islands">Øer</option><option value="earth">Jorden</option></select>
         </label>
         <label class="field" for="opt-minors"><span class="label">Bystater</span>
           <select id="opt-minors"><option value="auto" selected>Efter kortstørrelse</option><option value="0">Ingen</option><option value="2">2</option><option value="4">4</option><option value="6">6</option><option value="8">8</option></select>
         </label>
+        <label class="field" for="opt-pace"><span class="label">Tempo</span>
+          <select id="opt-pace"><option value="quick">Hurtigt (ca. 270 ture)</option><option value="standard" selected>Standard (400 ture)</option><option value="epic">Episk (ca. 600 ture)</option></select>
+        </label>
+        <div class="field"><span class="label">Sejrsformer</span>
+          <span class="checkrow vchecks"><label><input type="checkbox" id="v-conquest" checked> Erobring</label><label><input type="checkbox" id="v-space" checked> Rumskib</label><label><input type="checkbox" id="v-culture" checked> Kultur</label><label><input type="checkbox" id="v-diplo" checked> Diplomati</label></span>
+        </div>
         <label class="field check" for="opt-guide"><span class="label">Guide</span>
           <span class="checkrow"><input type="checkbox" id="opt-guide" checked> Vis guide for nye spillere</span>
         </label>
@@ -93,6 +100,7 @@
 <script src="js/game.js"></script>
 <script src="js/realm.js"></script>
 <script src="js/world.js"></script>
+<script src="js/extra.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/art.js"></script>
 <script src="js/ui.js"></script>

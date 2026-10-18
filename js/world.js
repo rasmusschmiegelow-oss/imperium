@@ -230,7 +230,7 @@ function aiAir(u, cv) {
 function cultureWonders(cid) { return Object.keys(G.wonders).filter(k => k !== 'un' && civHasWonder(cid, k)).length; }
 function cultureProgress(cid) {
   const cv = civ(cid);
-  return Math.min(1, cv.cultureTotal / VICTORY.culture) * 0.8 + Math.min(1, cultureWonders(cid) / VICTORY.cultureWonders) * 0.2;
+  return Math.min(1, cv.cultureTotal / cultureGoal()) * 0.8 + Math.min(1, cultureWonders(cid) / VICTORY.cultureWonders) * 0.2;
 }
 function unOwner() { const id = G.wonders.un; if (id == null) return null; const c = cityById(id); return c ? c.civ : null; }
 function unCandidates() {
@@ -261,7 +261,7 @@ function unForecast() {
   return { cands, votes, total: voters.length, need: Math.floor(voters.length / 2) + 1 };
 }
 function processUN() {
-  if (G.wonders.un == null) return;
+  if (G.wonders.un == null || !victoryOn('diplo')) return;
   if (G.un.next == null) G.un.next = G.turn + VICTORY.unEvery;
   if (G.turn < G.un.next) return;
   G.un.next = G.turn + VICTORY.unEvery;

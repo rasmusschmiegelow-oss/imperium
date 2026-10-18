@@ -67,6 +67,8 @@ const UNITS = {
   fighter:   { name: 'Jagerfly',      cost: 220, str: 30, ranged: 32, range: 6, moves: 1, cls: 'air', domain: 'air', tech: 'flight', intercept: 6, glyph: '✈', desc: 'Står i dine byer. Angriber inden for 6 felter og opsnapper fjendtlige fly.' },
   bomber:    { name: 'Bombefly',      cost: 280, str: 20, ranged: 60, range: 8, moves: 1, cls: 'air', domain: 'air', tech: 'flight', needs: 'oil', bombard: true, glyph: '🛩', desc: 'Står i dine byer. Bomber byer og enheder inden for 8 felter.' },
   aagun:     { name: 'Luftværn',      cost: 160, str: 32, moves: 2, cls: 'melee', tech: 'flight', intercept: 2, glyph: '🎯', desc: 'Opsnapper fjendtlige fly inden for 2 felter.' },
+  // spionage
+  spy:       { name: 'Spion',         cost: 70,  str: 0,  moves: 3, cls: 'civil', tech: 'university', spy: true, glyph: '🕵', desc: 'Stjæler viden, saboterer og skaber uro i fremmede byer. Står den i din egen by, beskytter den mod fjendens spioner.' },
   // religion (købes for tro)
   missionary:{ name: 'Missionær',     cost: 0,   str: 0,  moves: 3, cls: 'civil', faith: true, glyph: '⛪', desc: 'Spreder din religion til en by. Kan bruges to gange.' },
   // store personligheder (kan ikke bygges)
@@ -229,32 +231,32 @@ const ERAS = ['Oldtiden', 'Klassisk tid', 'Middelalderen', 'Renæssancen', 'Indu
 const IMPROVEMENT_TECH = { farm: 'agriculture', mine: 'mining', road: 'wheel', chop: 'bronze' };
 
 const CIVS = [
-  { key: 'dk', name: 'Danmark',    adj: 'dansk',     color: '#c8293b',
+  { key: 'dk', lat: 55.7, lon: 12.6, name: 'Danmark',    adj: 'dansk',     color: '#c8293b',
     cities: ['København', 'Aarhus', 'Odense', 'Roskilde', 'Ribe', 'Aalborg', 'Viborg', 'Esbjerg', 'Vejle', 'Helsingør', 'Randers', 'Kolding', 'Horsens', 'Silkeborg', 'Næstved', 'Svendborg', 'Haderslev', 'Holbæk', 'Slagelse', 'Hjørring', 'Skagen', 'Nyborg'] },
-  { key: 'rome', name: 'Romerriget', adj: 'romersk',  color: '#7d4bb8',
+  { key: 'rome', lat: 41.9, lon: 12.5, name: 'Romerriget', adj: 'romersk',  color: '#7d4bb8',
     cities: ['Roma', 'Antium', 'Capua', 'Ravenna', 'Neapolis', 'Arretium', 'Mediolanum', 'Pompeji', 'Brundisium', 'Tarentum', 'Verona', 'Genua', 'Florentia', 'Ostia', 'Aquileia', 'Placentia'] },
-  { key: 'egypt', name: 'Egypten',  adj: 'egyptisk',  color: '#e0a526',
+  { key: 'egypt', lat: 30.0, lon: 31.2, name: 'Egypten',  adj: 'egyptisk',  color: '#e0a526',
     cities: ['Theben', 'Memfis', 'Heliopolis', 'Alexandria', 'Giza', 'Abydos', 'Elefantine', 'Tanis', 'Edfu', 'Karnak', 'Amarna', 'Sais', 'Bubastis', 'Avaris'] },
-  { key: 'china', name: 'Kina',     adj: 'kinesisk',  color: '#2f9c5a',
+  { key: 'china', lat: 34.3, lon: 108.9, name: 'Kina',     adj: 'kinesisk',  color: '#2f9c5a',
     cities: ['Beijing', 'Xi\'an', 'Nanjing', 'Luoyang', 'Kaifeng', 'Hangzhou', 'Guangzhou', 'Chengdu', 'Suzhou', 'Wuhan', 'Tianjin', 'Shanghai', 'Datong', 'Lanzhou'] },
-  { key: 'aztec', name: 'Aztekerne', adj: 'aztekisk', color: '#1fa3a8',
+  { key: 'aztec', lat: 19.4, lon: -99.1, name: 'Aztekerne', adj: 'aztekisk', color: '#1fa3a8',
     cities: ['Tenochtitlan', 'Texcoco', 'Tlacopan', 'Tlatelolco', 'Xochimilco', 'Chalco', 'Coyoacan', 'Azcapotzalco', 'Tula', 'Cholula', 'Teotihuacan', 'Malinalco'] },
-  { key: 'mongol', name: 'Mongoliet', adj: 'mongolsk', color: '#e2662b',
+  { key: 'mongol', lat: 47.9, lon: 106.9, name: 'Mongoliet', adj: 'mongolsk', color: '#e2662b',
     cities: ['Karakorum', 'Kharkhorin', 'Darkhan', 'Erdenet', 'Khovd', 'Ölgii', 'Choibalsan', 'Mörön', 'Bayankhongor', 'Altai', 'Zuunmod', 'Sükhbaatar'] },
-  { key: 'greece', name: 'Grækenland', adj: 'græsk',  color: '#2f6fd1',
+  { key: 'greece', lat: 38.0, lon: 23.7, name: 'Grækenland', adj: 'græsk',  color: '#2f6fd1',
     cities: ['Athen', 'Sparta', 'Korinth', 'Argos', 'Delfi', 'Olympia', 'Rhodos', 'Knossos', 'Milet', 'Efesos', 'Pergamon', 'Byzans', 'Syrakus', 'Megara'] },
 ];
 
 // Bystater. type: handel (+guld), sofart (+mad i hovedstaden), militaer (gaver i form af enheder)
 const MINORS = [
-  { key: 'venedig',  name: 'Venedig',  type: 'handel',   color: '#d9d2b8' },
-  { key: 'zanzibar', name: 'Zanzibar', type: 'sofart',   color: '#9ad1c4' },
-  { key: 'kabul',    name: 'Kabul',    type: 'militaer', color: '#b98c7a' },
-  { key: 'monaco',   name: 'Monaco',   type: 'handel',   color: '#e6b8c8' },
-  { key: 'ragusa',   name: 'Ragusa',   type: 'sofart',   color: '#a9bfe0' },
-  { key: 'almaty',   name: 'Almaty',   type: 'militaer', color: '#c9b37c' },
-  { key: 'byblos',   name: 'Byblos',   type: 'handel',   color: '#cfa6e0' },
-  { key: 'hanoi',    name: 'Hanoi',    type: 'militaer', color: '#a7c98f' },
+  { key: 'venedig', lat: 45.4, lon: 12.3,  name: 'Venedig',  type: 'handel',   color: '#d9d2b8' },
+  { key: 'zanzibar', lat: -6.2, lon: 39.2, name: 'Zanzibar', type: 'sofart',   color: '#9ad1c4' },
+  { key: 'kabul', lat: 34.5, lon: 69.2,    name: 'Kabul',    type: 'militaer', color: '#b98c7a' },
+  { key: 'monaco', lat: 43.7, lon: 7.4,   name: 'Monaco',   type: 'handel',   color: '#e6b8c8' },
+  { key: 'ragusa', lat: 42.6, lon: 18.1,   name: 'Ragusa',   type: 'sofart',   color: '#a9bfe0' },
+  { key: 'almaty', lat: 43.2, lon: 76.9,   name: 'Almaty',   type: 'militaer', color: '#c9b37c' },
+  { key: 'byblos', lat: 34.1, lon: 35.6,   name: 'Byblos',   type: 'handel',   color: '#cfa6e0' },
+  { key: 'hanoi', lat: 21.0, lon: 105.8,    name: 'Hanoi',    type: 'militaer', color: '#a7c98f' },
 ];
 const MINOR_TYPES = {
   handel:   { name: 'Handelsby', bonus: 'Venner: +3 guld pr. tur (allieret: +5)' },
@@ -280,6 +282,19 @@ const MAPTYPES = {
   continents: { name: 'Kontinenter' },
   pangaea:    { name: 'Pangæa' },
   islands:    { name: 'Øer' },
+  earth:      { name: 'Jorden' },
+};
+// Størrelser for Jorden-kortet
+const EARTH_SIZES = { small: { w: 64, h: 36 }, medium: { w: 84, h: 47 }, large: { w: 100, h: 56 } };
+
+// Spiltempo: k ganges på omkostninger og vækst
+const PACES = {
+  quick:    { name: 'Hurtigt',  k: 0.67, turns: 270 },
+  standard: { name: 'Standard', k: 1,    turns: 400 },
+  epic:     { name: 'Episk',    k: 1.5,  turns: 600 },
+};
+const VICTORY_TYPES = {
+  conquest: 'Erobring', space: 'Rumskib', culture: 'Kultur', diplo: 'Diplomati',
 };
 
 const GP_TYPES = { sci: 'gp_sci', mer: 'gp_mer', eng: 'gp_eng', gen: 'gp_gen' };
