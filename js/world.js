@@ -32,6 +32,7 @@ function foundReligion(cv, key, founderBelief, followerBelief) {
   cv.faith -= religionCost();
   G.religions[key] = { key, founder: cv.id, holy: holy.id, beliefs: [founderBelief, followerBelief], founded: G.turn };
   holy.rel = key; holy.relP[key] = 500;
+  chron(cv.id, 'faith', `${cv.name} grundlagde ${RELIGIONS[key].name} med ${holy.name} som hellig by.`);
   notify(-1, `${cv.name} har grundlagt ${RELIGIONS[key].name} med ${holy.name} som hellig by.`, idx(holy.x, holy.y), cv.human ? 'good' : 'info');
   return true;
 }

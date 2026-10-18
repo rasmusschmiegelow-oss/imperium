@@ -7,7 +7,7 @@ Object.assign(UI, {
   },
   leaderQuote(cv, other) {
     const L = leaderOf(cv);
-    return `<div class="quote">${this.leaderBadge(cv, 30)}<div><q>${esc(leaderLine(cv, other))}</q><span>${esc(L.title)} ${esc(L.name)} · ${esc(personality(cv).name)}</span></div></div>`;
+    return `<div class="quote">${this.leaderBadge(cv, 30)}<div><q>${esc(leaderLine(cv, other))}</q><span>${esc(L.title)} ${esc(rulerName(cv))} · ${esc(personality(cv).name)}</span></div></div>`;
   },
 
   societyHtml() {
@@ -32,7 +32,8 @@ Object.assign(UI, {
       }).join('');
       return `<div class="poltree ${open ? '' : 'locked'} ${done ? 'done' : ''}"><div class="pth">${ART.miscGlyph(tr.icon, 26)}<div><b>${esc(tr.name)}</b><span>${open ? esc(tr.desc) : `Kræver ${esc(TECHS[tr.tech].name)}`}</span></div>${done ? '<span class="chip w">Fuldført</span>' : ''}</div><ul>${items}</ul></div>`;
     }).join('');
-    return `<div class="quote">${this.leaderBadge(h, 34)}<div><b>${esc(L.title)} ${esc(L.name)}</b><span>Du leder ${esc(h.name)}.</span></div></div>
+    void L;
+    return `${this.dynastyHtml(h)}
       <p>Kultur fra dine byer giver samfundspolitikker. ${ready ? `<b class="good">Du kan indføre en politik nu.</b>` : `Næste politik: ${Math.floor(h.polCul)}/${cost} kultur.`} Prisen stiger for hver politik og med antallet af byer. ${POLICY_FINISH}</p>
       ${ga}<div class="poltrees">${trees}</div>`;
   },

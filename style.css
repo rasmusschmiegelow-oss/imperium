@@ -464,3 +464,56 @@ input[type="text"], input:not([type]), #on-name, #on-code { background: var(--in
 .event svg { flex-shrink: 0; }
 .evchoices { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .evchoices .act { text-align: left; white-space: normal; }
+
+/* Årstider, dynasti, helte, krønike, kriser og eftermæle */
+#topbar .crisis { background: rgba(228,108,96,.16); border-color: rgba(228,108,96,.6); color: #f3c0b8; white-space: nowrap; }
+#topbar .crisis.safe { background: rgba(124,196,127,.12); border-color: rgba(124,196,127,.5); color: #cfe9d0; }
+#topbar .crisis svg, #stat-year svg { vertical-align: -2px; }
+.dynasty { margin-bottom: 8px; }
+.dynasty .quote { align-items: flex-start; }
+.dynasty .traits { margin: 4px 0 2px; display: flex; gap: 6px; flex-wrap: wrap; }
+.dynasty .tdesc { font-size: 12px; opacity: .7; }
+.dynasty details { margin: 6px 0; font-size: 14px; }
+.dynasty summary { cursor: pointer; opacity: .85; }
+.pastrulers { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.pastrulers span { opacity: .6; font-size: 13px; }
+.relicline { background: var(--ink-2); border-radius: 8px; padding: 6px 10px; margin: 6px 0; font-size: 14px; }
+.relicline svg { vertical-align: -5px; margin-right: 4px; }
+.relicline.new { box-shadow: inset 0 0 0 1px rgba(232,195,76,.6); }
+.heirs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 12px; }
+.heir { background: var(--ink-2); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.heir.on { box-shadow: inset 0 0 0 1px rgba(232,195,76,.5); }
+.heir > div { display: flex; gap: 5px; flex-wrap: wrap; }
+.heir > span { font-size: 12px; opacity: .75; flex: 1; }
+.saga { font-style: italic; font-size: 13px; color: var(--bronze-hi); margin: 2px 0 4px; }
+.heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.hero { background: var(--ink-2); border-radius: 10px; padding: 8px 10px; }
+.hero b, .hero > span { display: block; }
+.hero > span { font-size: 13px; opacity: .7; }
+.hero ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; font-style: italic; }
+.chronicle h4 { margin: 14px 0 6px; color: var(--bronze-hi); font-size: 15px; letter-spacing: .04em; text-transform: uppercase; }
+.chronicle p { margin: 0 0 6px; padding-left: 10px; border-left: 2px solid var(--ink-3); line-height: 1.45; }
+.chronicle p.own { border-left-color: var(--bronze-hi); }
+.chronicle p.k-crisis { border-left-color: #e46c60; }
+.chronicle em { font-style: normal; opacity: .6; font-size: 13px; margin-right: 6px; }
+.cbar { height: 10px; background: var(--ink-3); border-radius: 99px; overflow: hidden; margin: 8px 0 4px; }
+.cbar span { display: block; height: 100%; background: linear-gradient(90deg, #7cc47f, #e8c34c); }
+.crows { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 12px; }
+.crow { display: flex; align-items: center; gap: 8px; background: var(--ink-2); border-radius: 8px; padding: 5px 10px; font-size: 14px; }
+.crow i { width: 12px; height: 12px; border-radius: 50%; }
+.crow span:first-of-type { flex: 1; }
+.epitaph { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: 19px; text-align: center; padding: 14px 10px; margin: 8px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--bronze-hi); }
+.lcats { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+.lcat { background: var(--ink-2); border-radius: 8px; padding: 6px 10px; display: flex; justify-content: space-between; gap: 6px; font-size: 14px; }
+.lcat.top { box-shadow: inset 0 0 0 1px rgba(232,195,76,.6); }
+.relics { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.relic { display: flex; gap: 10px; align-items: center; background: var(--ink-2); border-radius: 10px; padding: 8px 10px; }
+.relic.locked { opacity: .5; }
+.relic b, .relic span { display: block; }
+.relic span { font-size: 13px; opacity: .8; }
+.relic .need { font-size: 12px; color: var(--bronze-hi); opacity: 1; }
+.lgame { display: flex; gap: 10px; background: var(--ink-2); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+.lgame i { width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.lgame span { font-size: 13px; opacity: .7; }
+.lgame em { display: block; font-family: Georgia, serif; font-size: 14px; margin-top: 2px; }
+@media (max-width: 760px) { #topbar .crisis .cn { display: none; } }

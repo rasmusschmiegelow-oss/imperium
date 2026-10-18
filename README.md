@@ -12,6 +12,11 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Regeringsformer:** Despoti, Monarki, Republik, Demokrati og Kommunisme, hver med sine fordele og ulemper. Et skifte koster et par ture med anarki.
 - **Samfundspolitikker:** kultur giver politikker i seks grene: Tradition, Frihed, Ære, Fromhed, Handel og Rationalisme. Når en hel gren er indført, begynder en guldalder.
 - **Guldalder:** overskud af tilfredshed samles op og udløser en guldalder med +20 % produktion og guld og ekstra kultur.
+- **Årstider og vejr:** året går fra forår til vinter. Foråret og høsten giver mad. Om vinteren er der mindre mad, sne gør marchen langsom og kold, og polarhavene fryser, så hære kan gå over isen.
+- **Dynasti:** din hersker har personlige træk, ældes og dør. Så overtager den ældste arving, men du kan vælge en yngre og risikere arvestrid.
+- **Sagaer og helte:** enheder med tre sejre bliver navngivne helte med deres egen saga. Byer kan få tilnavne som den Uindtagelige, den Prægtige og den Hellige. Krøniken under Riget fortæller historien.
+- **Verdenskriser:** Den Store Vinter, Den Sorte Død, Kometen, Stormfloden og Græshoppesværmen rammer alle. Folkene kan samle guld til en fælles indsats, og de husker, hvem der hjalp.
+- **Eftermæle og arvestykker:** når spillet slutter, får dit folk en gravskrift og point for eftermæle i syv kategorier. Pointene samles i Æresbogen og låser arvestykker op, som du kan tage med ind i nye spil, fx Odins ravne, Jellingstenen og Guldhornene.
 - **Religion:** tro fra helligdomme, templer og Stonehenge. Grundlæg en af syv religioner med trosretninger, og spred den med missionærer og fra by til by.
 - **Forskning:** 37 teknologier fra Landbrug til Rumfart, vist i et teknologitræ med forbindelser.
 - **Militær:** landenheder, krigsskibe og indskibning. Med Sejlads sejler landenheder langs kysten, med Astronomi over åbent hav. Gamle enheder kan opgraderes for guld. Det er sværere at angribe over floder. Enheder samler erfaring og vælger forfremmelser som Stormtropper, Skovkæmper, Præcision og Felthospital.
@@ -59,6 +64,8 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - `js/extra.js`: produktionskø, automatisering, spionage, spiltempo, sejrsvalg og kortet over Jorden
 - `js/society.js`: samfundspolitikker, guldalder, ledere, opgaver fra bystater og begivenheder
 - `js/society-ui.js`: skærmbilleder til samfund, ledere og begivenheder
+- `js/saga.js`: årstider, dynasti, helte, krønike, verdenskriser, eftermæle og arvestykker
+- `js/saga-ui.js`: skærmbilleder til det samme
 - `js/online.js`: onlinespil, lobby, chat, overtagelse og spillerkoder
 - `js/art.js`: grafikken fra Paper-filen "Imperium · Grafik" (stregikoner, terræn, byer og ressourcer)
 - `js/ui.js`: tegning af kortet, input, paneler, animationer og guide

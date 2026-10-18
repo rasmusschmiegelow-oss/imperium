@@ -57,6 +57,7 @@ const UI = {
     this.bindInput();
     this.bindKeys();
     $('#btn-tech').onclick = () => this.openTech();
+    $('#btn-crisis').onclick = () => this.openCrisis();
     $('#btn-gov').onclick = () => this.openRealm(canFoundReligion(human()) ? 'religion' : canAdoptPolicy(human()) ? 'society' : this.realmTab);
     $('#stat-faith').onclick = () => this.openRealm('religion');
     $('#stat-sci').onclick = () => this.openTech();
@@ -103,7 +104,7 @@ const UI = {
       const humans = [chosen];
       for (let k = 2; k <= n; k++) { const v = $('#opt-p' + k).value; if (!humans.includes(v)) humans.push(v); }
       const opts = { civ: chosen, humans, opponents: Math.min(+$('#opt-opp').value, CIVS.length - humans.length), size: $('#opt-size').value, difficulty: $('#opt-diff').value,
-        mapType: $('#opt-map').value, minors: mv === 'auto' ? undefined : +mv, tutorial: $('#opt-guide').checked, pace: $('#opt-pace').value, victories: this.victoryChoice() };
+        mapType: $('#opt-map').value, minors: mv === 'auto' ? undefined : +mv, tutorial: $('#opt-guide').checked, pace: $('#opt-pace').value, victories: this.victoryChoice(), relic: $('#opt-relic').value };
       newGame(opts);
       this.enterGame();
       for (const id of G.humans) notify(id, `Velkommen, hersker over ${civ(id).name}. Grundlæg din første by med bosætteren (tast B).`, null, 'good');
@@ -112,6 +113,8 @@ const UI = {
     $('#btn-continue').onclick = () => { if (loadGame()) this.enterGame(); };
     $('#btn-load').onclick = () => this.openLoad();
     $('#btn-online').onclick = () => this.openOnline();
+    $('#btn-legacy').onclick = () => this.openLegacy();
+    this.fillRelics();
     // baggrundskort til startskærmen
     newGame({ civ: 'dk', opponents: 3, size: 'medium', difficulty: 'normal', mapType: 'continents', tutorial: false });
     G.explored.fill(1); VIS = new Uint8Array(G.w * G.h).fill(1);
@@ -613,7 +616,11 @@ const UI = {
     const lux = civLuxuries(h.id).length;
     $('#stat-happy').innerHTML = `<span class="k">Tilfredshed</span>${unh ? `<b class="unhappy">${unh} utilfredse</b>` : inGoldenAge(h) ? `<b class="golden">${ART.miscGlyph('golden', 14)} Guldalder</b>` : '<b class="happy">Tilfredse</b>'}<span>${inGoldenAge(h) ? `${h.ga.left} ture` : `${lux} luksus`}</span>`;
     $('#stat-happy').title = (unh ? 'Utilfredse indbyggere arbejder ikke. Klik for at se den mest utilfredse by.' : 'Alle indbyggere arbejder.') + (inGoldenAge(h) ? ` Guldalder i ${h.ga.left} ture endnu.` : ` Guldalder: ${Math.floor(h.ga.pts)}/${goldenNeed(h)} point.`);
-    $('#stat-year').innerHTML = `<b>${yearLabel(G.turn)}</b><span class="k">Tur ${G.turn}</span>`;
+    $('#stat-year').innerHTML = `<b>${yearLabel(G.turn)}</b><span class="k">${this.seasonHtml()} · tur ${G.turn}</span>`;
+    $('#stat-year').title = `${season().name}: ${season().desc}`;
+    const cb = $('#btn-crisis');
+    cb.hidden = !G.crisis;
+    if (G.crisis) { const C = CRISES[G.crisis.key]; cb.innerHTML = `${ART.miscGlyph(C.icon, 16)} <span class="cn">${esc(C.name)} · </span>${G.crisis.left}`; cb.classList.toggle('safe', !crisisHits(h.id)); cb.title = crisisHits(h.id) ? `Verdenskrise. Giv ${crisisShare()} guld for at blive beskyttet.` : 'Du er beskyttet mod krisen.'; }
     const strat = Object.keys(RESOURCES).filter(k => RESOURCES[k].strat && resVisible(k, h));
     $('#stat-res').innerHTML = strat.map(k => { const a = stratAvail(h.id, k), sup = stratSupply(h.id, k); return `<span class="res ${a < 0 ? 'neg' : sup ? '' : 'none'}" title="${esc(RESOURCES[k].name)}: ${Math.max(0, a)} ledig af ${sup}">${ART.resGlyph(k, 15)}<b>${a}</b></span>`; }).join('');
     $('#stat-res').title = 'Strategiske ressourcer: ledige / i alt. Visse enheder kræver dem.';
@@ -718,8 +725,8 @@ const UI = {
       const stackUnits = unitsAt(idx(u.x, u.y)).filter(v => v.civ === u.civ);
       const stack = stackUnits.length > 1 ? `<div class="stack">${stackUnits.map(v => `<button type="button" title="${esc(UNITS[v.type].name)}" data-u="${v.id}" class="${v === u ? 'on' : ''}">${ART.unitGlyph(v.type)}</button>`).join('')}</div>` : '';
       const hpc = u.hp > 60 ? 'var(--good)' : u.hp > 30 ? 'var(--warn)' : 'var(--bad)';
-      p.innerHTML = `<h3><span class="glyph" style="--unit-civ:${cv.color}">${ART.unitGlyph(u.type, 22, '#FFFFFF')}</span>${esc(T.name)}${u.vet ? ' <span class="chip w">Veteran</span>' : ''}${generalNear(u) && isMil(u) ? ' <span class="chip w">General</span>' : ''}</h3>
-        <div class="sub">${own ? '' : esc(cv.name) + ' · '}${status || (T.desc ? esc(T.desc) : TERRAIN[G.tiles[idx(u.x, u.y)].t].name)}</div>
+      p.innerHTML = `<h3><span class="glyph" style="--unit-civ:${cv.color}">${ART.unitGlyph(u.type, 22, '#FFFFFF')}</span>${u.hero ? `${esc(u.hero)} <span class="chip w">${ART.miscGlyph('hero', 13)} Helt · ${esc(T.name)}</span>` : esc(T.name)}${u.vet ? ' <span class="chip w">Veteran</span>' : ''}${generalNear(u) && isMil(u) ? ' <span class="chip w">General</span>' : ''}</h3>
+        <div class="sub">${own ? '' : esc(cv.name) + ' · '}${status || (T.desc ? esc(T.desc) : TERRAIN[G.tiles[idx(u.x, u.y)].t].name)}${snowAt(idx(u.x, u.y)) || iceAt(idx(u.x, u.y)) ? ' · fryser uden for eget land' : ''}</div>${u.hero && u.saga ? `<div class="saga">${esc(u.saga[u.saga.length - 1])}</div>` : (u.kills ? `<div class="sub">${u.kills} ${u.kills === 1 ? 'sejr' : 'sejre'}. Ved 3 sejre bliver enheden en helt.</div>` : '')}
         <div class="kv">${T.str ? `<div><span>Styrke</span> <b>${T.str}</b></div>` : ''}${T.ranged ? `<div><span>Afstand</span> <b>${T.ranged}</b> <span>(${unitRange(u)} felter)</span></div>` : ''}
         <div><span>Bevægelse</span> <b>${fmt(u.moves)}/${maxMoves(u)}</b></div><div><span>Liv</span> <b>${u.hp}</b></div></div>
         <div class="hpbar"><span style="width:${u.hp}%;background:${hpc}"></span></div>
@@ -739,7 +746,7 @@ const UI = {
       if (c && G.explored[i]) {
         const cv = civ(c.civ);
         const minorInfo = cv.minor ? ` · ${MINOR_TYPES[cv.mtype].name.toLowerCase()} · ${minorStatus(cv, G.human).toLowerCase()} (indflydelse ${cv.inf[G.human] || 0})` : '';
-        p.innerHTML = `<h3><span style="color:${cv.color}">●</span>${esc(c.name)}</h3><div class="sub">${esc(cv.minor ? 'Bystat' : cv.name)}${c.capital && !cv.minor ? ' · hovedstad' : ''}${esc(minorInfo)}</div>
+        p.innerHTML = `<h3><span style="color:${cv.color}">●</span>${esc(cityTitle(c))}</h3><div class="sub">${esc(cv.minor ? 'Bystat' : cv.name)}${c.capital && !cv.minor ? ' · hovedstad' : ''}${esc(minorInfo)}</div>
           <div class="kv"><div><span>Indbyggere</span> <b>${c.pop}</b></div><div><span>Forsvar</span> <b>${fmt(cityStrength(c))}</b></div><div><span>Liv</span> <b>${c.hp}</b></div>${cityHasWalls(c) ? '<div><b>Bymur</b></div>' : ''}</div>`;
       } else {
         p.innerHTML = `<div class="sub" style="margin:0">${this.tileTip(i)}</div>`;
@@ -786,6 +793,7 @@ const UI = {
       const vis = this.visibleTiles();
       for (const i of vis) { const [cx, cy] = centerI(i); ART.terrain(ctx, G.tiles[i], i, cx, cy, detail); }
       for (const i of vis) this.drawRiver(i);
+      this.drawSeason(vis);
       if (detail) for (const i of vis) this.drawRoads(i);
       if (detail) for (const i of vis) this.drawExtras(i);
       for (const i of vis) this.drawBorders(i);
@@ -1006,6 +1014,7 @@ const UI = {
     if (ring) { ctx.strokeStyle = '#ead097'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, r + 3.5, 0, 7); ctx.stroke(); }
     ART.unit(ctx, u.type, cx, cy, r);
     if (u.promos && isMil(u)) ART.promoMarks(ctx, cx - r - 1, cy + r * 0.45, u.promos.length, u.civ === G.human && promoPending(u) > 0);
+    if (u.hero) { ctx.fillStyle = '#F2C14E'; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 1; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 2.2 : 5; ctx.lineTo(cx + r * 0.8 + Math.cos(a) * rr, cy - r * 0.8 + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); ctx.stroke(); }
     if (u.x != null && stratShort(u)) { ctx.fillStyle = '#E46C60'; ctx.beginPath(); ctx.arc(cx + r * 0.85, cy + r * 0.85, 3.5, 0, 7); ctx.fill(); }
     if (u.hp < 100) {
       ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(cx - r, cy + r + 2, r * 2, 4);
@@ -1144,7 +1153,7 @@ const UI = {
     };
     const wondersHere = Object.entries(G.wonders).filter(([, id]) => id === c.id).map(([k]) => WONDERS[k].name);
     const routes = routesOf(c).map(r => { const o = cityById(r.a === c.id ? r.b : r.a); return o ? `<span class="chip">${esc(o.name)} +${routeValue(c, o)}</span>` : ''; }).join('');
-    d.innerHTML = `<header><span class="pop" style="background:${cv.color}">${c.pop}</span><h2>${c.capital ? '★ ' : ''}${esc(c.name)}</h2><button type="button" class="x" aria-label="Luk">×</button></header>
+    d.innerHTML = `<header><span class="pop" style="background:${cv.color}">${c.pop}</span><h2>${c.capital ? '★ ' : ''}${esc(cityTitle(c))}</h2><button type="button" class="x" aria-label="Luk">×</button></header>
       <div class="body">
         <div class="yields">
           <div class="y-food"><b>${y.foodNet >= 0 ? '+' : ''}${y.foodNet}</b><span>Mad</span></div>
@@ -1316,9 +1325,9 @@ const UI = {
 
   openRealm(tab) {
     this.realmTab = tab || this.realmTab || 'gov';
-    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['society', 'Samfund', 'pol_tradition'], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
-    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'society' ? this.societyHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
-    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory' || this.realmTab === 'society');
+    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['society', 'Samfund', 'pol_tradition'], ['chronicle', 'Krønike', 'chronicle'], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
+    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'society' ? this.societyHtml() : this.realmTab === 'chronicle' ? this.chronicleHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
+    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory' || this.realmTab === 'society' || this.realmTab === 'chronicle');
     bg.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => this.openRealm(b.dataset.tab));
     if (this.realmTab === 'gov') this.bindGov(bg);
     if (this.realmTab === 'religion') this.bindReligion(bg);
@@ -1495,7 +1504,7 @@ const UI = {
       const why = at.reasons.length ? at.reasons.map(r => `${r[1] > 0 ? '+' : ''}${r[1]} ${r[0]}`).join('\n') : 'Ingen særlige grunde endnu';
       const agr = [hasPact(h.id, c.id) ? `<span class="chip ok">${ART.miscGlyph('dip_pact', 13)} Forsvarspagt</span>` : '', hasOB(h.id, c.id) ? `<span class="chip">${ART.miscGlyph('dip_ob', 13)} Åbne grænser</span>` : ''].join('');
       const L = leaderOf(c);
-      return `<div class="drow lead">${this.leaderBadge(c, 34)}<div><div class="nm">${esc(c.name)} <span class="ldr">${esc(L.title)} ${esc(L.name)} · ${esc(personality(c).name)}</span><span class="status ${war ? 'war' : 'peace'}">${war ? 'Krig' : 'Fred'}</span><span class="att ${ai.cls}" title="${esc(why)}">${ai.name} (${at.score > 0 ? '+' : ''}${at.score})</span>${agr}</div>
+      return `<div class="drow lead">${this.leaderBadge(c, 34)}<div><div class="nm">${esc(c.name)} <span class="ldr">${esc(L.title)} ${esc(rulerName(c))} · ${esc(personality(c).name)}</span><span class="status ${war ? 'war' : 'peace'}">${war ? 'Krig' : 'Fred'}</span><span class="att ${ai.cls}" title="${esc(why)}">${ai.name} (${at.score > 0 ? '+' : ''}${at.score})</span>${agr}</div>
         <div class="meta">${civCities(c.id).length} byer · militært ${mil} · ${score(c.id)} point · ${c.techs.length} teknologier · ${esc(gov(c).name)}${c.policies && c.policies.length ? ` · ${c.policies.length} politikker` : ''}${inGoldenAge(c) ? ' · guldalder' : ''}</div>
         <div class="said">“${esc(leaderLine(c, h.id))}”</div>
         ${at.reasons.length ? `<div class="reasons">${at.reasons.slice(0, 4).map(r => `<span class="${r[1] > 0 ? 'p' : 'n'}">${r[1] > 0 ? '+' : ''}${r[1]} ${esc(r[0])}</span>`).join('')}</div>` : ''}</div>
@@ -1586,6 +1595,7 @@ const UI = {
   showOffer(o) {
     this.offerNo = null;
     if (o.type === 'event') return this.showEvent(o);
+    if (o.type === 'heir') return this.showHeir(o);
     const c = civ(o.from);
     const h = human();
     if (!c.alive) return false;
@@ -1681,8 +1691,10 @@ const UI = {
       title = 'Nederlag';
       text = o.how === 'rum' ? `${civ(o.winner).name} sendte det første rumskib af sted.` : o.how === 'kultur' ? `${civ(o.winner).name} vandt en kulturel sejr.` : o.how === 'diplomati' ? `${civ(o.winner).name} blev valgt som verdensleder i De Forenede Nationer.` : o.how === 'erobring' ? `${civ(o.winner).name} har erobret verden.` : `${civ(o.winner).name} sluttede med flest point.`;
     }
-    const bg = this.modal(title, `<p>${esc(text)}</p><p>Dine point: <b>${score(h.id)}</b> · Tur ${G.turn}</p><div class="chart">${this.chartSvg('s', true)}</div>`,
-      `<button type="button" class="act" id="g-look">Se kortet</button><button type="button" class="act primary" id="g-new">Nyt spil</button>`);
+    text = text.replace(/\.\./g, '.');
+    const bg = this.modal(title, `<p>${esc(text)}</p><p>Dine point: <b>${score(h.id)}</b> · Tur ${G.turn}</p>${this.legacyHtml(h)}<div class="chart">${this.chartSvg('s', true)}</div>`,
+      `<button type="button" class="act" id="g-look">Se kortet</button><button type="button" class="act" id="g-chron">Læs krøniken</button><button type="button" class="act primary" id="g-new">Nyt spil</button>`, true);
+    bg.querySelector('#g-chron').onclick = () => { this.afterModal = () => this.showGameOver(); this.openRealm('chronicle'); };
     bg.querySelector('#g-new').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ingen lager */ } location.reload(); };
     bg.querySelector('#g-look').onclick = () => { G.explored.fill(1); updateVisibility(); this.closeModal(); this.dirty(); };
   },

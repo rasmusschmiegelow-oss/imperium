@@ -41,6 +41,8 @@ const POLICY_FINISH = 'Når hele grenen er indført, begynder en guldalder.';
 function policyFx(cv) {
   const fx = {};
   for (const k of (cv && cv.policies) || []) { const p = POLICIES[k]; if (p) for (const f in p.fx) fx[f] = (fx[f] || 0) + p.fx[f]; }
+  const tf = traitFx(cv);
+  for (const f in tf) fx[f] = (fx[f] || 0) + tf[f];
   return fx;
 }
 function treeOpen(cv, t) { const tr = POLICY_TREES[t]; return !tr.tech || cv.techs.includes(tr.tech); }
@@ -87,6 +89,7 @@ function inGoldenAge(cv) { return !!(cv && cv.ga && cv.ga.left > 0); }
 function startGoldenAge(cv, why) {
   cv.ga.left = (cv.ga.left || 0) + goldenTurns();
   cv.ga.count = (cv.ga.count || 0) + 1;
+  if (typeof chron === 'function') chron(cv.id, 'golden', `En guldalder begyndte i ${cv.name}${cv.ruler ? ` under ${cv.ruler.name}` : ''}.`);
   notify(cv.id, `${why ? why + ' ' : ''}En guldalder begynder: +20 % produktion og guld og +2 kultur i hver by i ${cv.ga.left} ture.`, null, 'good');
   if (cv.human && typeof SFX !== 'undefined') SFX.play('tech');
 }
@@ -117,19 +120,25 @@ function societyCity(c, cv) {
   if (c.build && c.build.key === 'settler') r.pm += f.settlerProd || 0;
   if (ga) { r.pm += 0.2; r.gm += 0.2; r.culture += 2; }
   r.f += c.fertile || 0;
+  crisisCity(c, r);
   return r;
 }
 function societyHappy(c, cv, src) {
-  const f = policyFx(cv);
-  if (f.happy) src.push(['Samfundspolitikker', f.happy]);
+  const f = policyFx(cv), tf = traitFx(cv);
+  const ph = (f.happy || 0) - (tf.happy || 0);
+  if (ph) src.push(['Samfundspolitikker', ph]);
+  const rh = cv.relic && RELICS[cv.relic].fx ? RELICS[cv.relic].fx.happy || 0 : 0;
+  if (rh) src.push([RELICS[cv.relic].name, rh]);
+  if (tf.happy - rh) src.push([`Herskeren ${cv.ruler ? cv.ruler.name : ''}`.trim(), tf.happy - rh]);
+  if (G.crisis && G.crisis.key === 'comet' && crisisHits(c.civ)) src.push(['Frygt for kometen', -2]);
   if (f.garrisonHappy && G.units.some(u => u.civ === c.civ && u.x === c.x && u.y === c.y && isMil(u))) src.push(['Militærkaste', f.garrisonHappy]);
   if (c.appeased && c.appeased > G.turn) src.push(['Opfyldte krav', 2]);
 }
 function policyStrength(u, role, opp, tileI) {
   const cv = civ(u.civ);
-  if (!cv || !cv.policies || !cv.policies.length) return 0;
+  if (!cv || !isMajor(cv)) return 0;
   const f = policyFx(cv);
-  let m = f.str || 0;
+  let m = (f.str || 0) + heroStrength(u);
   if (f.barbStr && opp && opp.civ != null && civ(opp.civ).barb) m += f.barbStr;
   if (f.garrisonDef && role === 'def' && tileI != null) { const c = cityAt(tileI); if (c && c.civ === u.civ) m += f.garrisonDef; }
   return m;
@@ -188,7 +197,7 @@ function leaderLine(cv, other) {
   }
   return list[(G.turn + cv.id * 7) % list.length];
 }
-function leaderInitials(cv) { return leaderOf(cv).name.split(' ').map(w => w[0]).slice(0, 2).join(''); }
+function leaderInitials(cv) { return (cv.ruler ? cv.ruler.base : leaderOf(cv).name).split(' ').map(w => w[0]).slice(0, 2).join(''); }
 
 // ---------- Opgaver fra bystater ----------
 function questDeadline() { return Math.round(30 * paceK()); }
@@ -375,6 +384,7 @@ function societyTurn(cv, culture) {
     if (canAdoptPolicy(cv) && !cv.toldPolicy) { cv.toldPolicy = true; notify(cv.id, 'Du har kultur nok til en ny samfundspolitik. Åbn Riget → Samfund.', null, 'good'); }
   } else aiPolicy(cv);
   rollEvent(cv);
+  sagaTurn(cv);
 }
 function ensureSocietyState() {
   for (const cv of G.civs) {
@@ -389,6 +399,7 @@ function ensureSocietyState() {
     }
   }
   if (!G.campsGone) G.campsGone = [];
+  ensureSagaState();
 }
 
 // Hvad lederens personlighed lægger mærke til hos andre

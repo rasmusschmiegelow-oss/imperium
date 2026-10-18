@@ -327,6 +327,7 @@ function newGame(opts) {
     createUnit(cv.id, 'scout', sx, sy);
     if (!cv.human && opts.difficulty === 'hard') createUnit(cv.id, 'warrior', x, y);
   });
+  if (opts.relic) for (const id of G.humans) applyRelic(civ(id), opts.relic);
   G.civs.forEach(c => { if (!c.human && !c.barb) aiChooseResearch(c); });
   updateVisibility();
   return G;
@@ -348,7 +349,7 @@ function capitalOf(cid) { return G.cities.find(c => c.civ === cid && c.capital) 
 function isMil(u) { return UNITS[u.type].str > 0; }
 function isSea(u) { return UNITS[u.type].domain === 'sea'; }
 function isWater(i) { return !!TERRAIN[G.tiles[i].t].water; }
-function embarked(u) { return !isSea(u) && isWater(idx(u.x, u.y)); }
+function embarked(u) { const i = idx(u.x, u.y); return !isSea(u) && isWater(i) && !iceAt(i); }
 function atWar(a, b) { return a !== b && G.war[a][b]; }
 function landPassable(i) { return !isWater(i) && G.tiles[i].t !== 'mountain'; }
 function cityCoastal(c) { return neighbors(c.x, c.y).some(j => isWater(j)); }
@@ -409,11 +410,13 @@ function canTraverse(u, i) {
   const t = G.tiles[i], T = TERRAIN[t.t];
   if (UNITS[u.type].domain === 'air') { const c = cityAt(i); return !!(c && c.civ === u.civ); }
   if (isSea(u)) {
+    if (T.water && iceAt(i)) return false;
     if (T.water) return !(UNITS[u.type].coastOnly && t.t === 'ocean');
     const c = cityAt(i);
     return !!(c && c.civ === u.civ && cityCoastal(c));
   }
   if (!T.water) return t.t !== 'mountain';
+  if (iceAt(i)) return true;
   const cv = civ(u.civ);
   if (cv.barb || cv.minor) return false;
   return t.t === 'coast' ? hasTech(cv, 'sailing') : hasTech(cv, 'astronomy');
@@ -422,13 +425,14 @@ function canTraverse(u, i) {
 function moveCost(from, to, u) {
   if (!canTraverse(u, to)) return Infinity;
   if (isSea(u)) return 1;
-  const wf = isWater(from), wt = isWater(to);
+  const wf = isWater(from) && !iceAt(from), wt = isWater(to) && !iceAt(to);
   if (wf !== wt) return 2; // ind- eller udskibning bruger resten af turen
   if (wt) return 1;
   const t = G.tiles[to];
   const roadA = G.tiles[from].road || cityAt(from), roadB = t.road || cityAt(to);
   if (roadA && roadB) return 1 / 3;
-  return TERRAIN[t.t].move;
+  if (iceAt(to)) return 2;
+  return TERRAIN[t.t].move + (snowAt(to) ? 1 : 0);
 }
 
 // Kan enheden u gå ind på felt i (uden angreb)?
@@ -745,6 +749,8 @@ function attack(u, i) {
     meet(u.civ, c.civ);
     if (u.hp <= 0) {
       killUnit(u);
+      c.repelled = (c.repelled || 0) + 1;
+      if (u.hero) chron(u.civ, 'hero', `Sagaen om ${u.hero} endte foran murene i ${c.name}.`);
       notify(u.civ, `Din ${T.name.toLowerCase()} faldt i angrebet på ${c.name}.`, i, 'bad');
       notify(c.civ, `${c.name} slog et angreb fra en ${atkName} tilbage.`, i, 'good');
       return;
@@ -763,6 +769,7 @@ function attack(u, i) {
   const defName = `${civ(d.civ).adj} ${UNITS[d.type].name.toLowerCase()}`;
   if (d.hp <= 0) {
     killUnit(d);
+    onKill(u, d, i);
     notify(u.civ, `Din ${T.name.toLowerCase()} besejrede en ${defName}.`, i, 'good');
     notify(d.civ, `Din ${UNITS[d.type].name.toLowerCase()} blev dræbt af en ${atkName}.`, i, 'bad');
     addGreatPoints(civ(u.civ), 'gen', 3);
@@ -772,6 +779,7 @@ function attack(u, i) {
   }
   if (u.hp <= 0) {
     killUnit(u);
+    onKill(d, u, from);
     notify(u.civ, `Din ${T.name.toLowerCase()} døde i kampen.`, i, 'bad');
     notify(d.civ, `Din ${UNITS[d.type].name.toLowerCase()} vandt en forsvarskamp.`, i, 'good');
     gainXp(d, 5, civ(u.civ).barb);
@@ -806,6 +814,9 @@ function captureCity(u, c) {
   c.locked = []; c.focus = 'balanced';
   c.blds = c.blds.filter(b => b !== 'walls' && b !== 'barracks');
   for (const t of G.tiles) if (t.city === c.id) t.owner = u.civ;
+  c.captures = (c.captures || 0) + 1;
+  if (isMajor(civ(u.civ))) civ(u.civ).stats.captured++;
+  chron(u.civ, 'war', `${civ(u.civ).name} erobrede ${cityTitle(c)} fra ${civ(old).name}${u.hero ? `, anført af ${u.hero}` : ''}.`);
   notify(u.civ, `Du har erobret ${c.name}!`, i, 'good');
   notify(old, `${c.name} er faldet til ${civ(u.civ).name}!`, i, 'bad');
   remember(old, u.civ, 'city', -25, 'Erobrede vores byer', 80);
@@ -823,6 +834,7 @@ function checkElimination(cid, by) {
   if (!c.alive || c.barb) return;
   if (civCities(cid).length === 0 && !civUnits(cid).some(u => u.type === 'settler')) {
     c.alive = false;
+    if (isMajor(c)) chron(-1, 'war', `${c.name} gik under${by != null ? ` for ${civ(by).name}s hære` : ''}.`);
     G.units.filter(u => u.civ === cid).forEach(killUnit);
     for (let o = 0; o < G.civs.length; o++) { if (o !== G.barb) G.war[o][cid] = G.war[cid][o] = false; }
     notify(-1, `${c.minor ? 'Bystaten ' : ''}${c.name} er blevet udslettet${by != null ? ` af ${civ(by).name}` : ''}.`, null, by === G.human ? 'good' : 'bad');
@@ -896,6 +908,8 @@ function foundCity(u) {
   cv.everCity = true;
   for (const o of majors()) if (o.id !== cv.id && G.cities.some(x => x.civ === o.id && dist(x.x, x.y, c.x, c.y) <= 5)) remember(o.id, cv.id, 'settle', -6, 'Bosatte sig tæt på os', 24);
   assignAllTiles();
+  if (c.capital && isMajor(cv)) chron(cv.id, 'city', `${cv.name} grundlagde ${c.name}${cityOnRiver(c) ? ' ved floden' : cityCoastal(c) ? ' ved kysten' : ''}. Det blev rigets hovedstad.`);
+  else if (isMajor(cv) && civCities(cv.id).length % 4 === 0) chron(cv.id, 'city', `${cv.name} grundlagde ${c.name}, rigets ${civCities(cv.id).length}. by.`);
   if (cv.human) { updateVisibility(); notify(cv.id, `${c.name} er grundlagt.`, i, 'good'); if (typeof SFX !== 'undefined') SFX.play('city'); }
   else aiChooseBuild(c);
   return c;
@@ -1110,6 +1124,7 @@ function cityYields(c) {
   sci += re.sci + sx.sci;
   if (cv.gov === 'anarchy') sci = 0;
   const gold = t * (1 - cv.sciRate) * gm * ai + re.gold + sx.gold;
+  f += seasonFoodAdj(c, f - c.pop * 2);
   const foodNet = f - c.pop * 2;
   const cap = c.blds.includes('aqueduct') ? 30 : 8;
   let culture = 1 + (c.capital ? 1 : 0) + re.culture + sx.culture;
@@ -1228,6 +1243,7 @@ function processCity(c) {
         c.build = null;
       } else {
         c.prod -= cost; G.wonders[b.key] = c.id; c.build = null;
+        chron(c.civ, 'wonder', `${cv.name} fuldførte ${WONDERS[b.key].name} i ${c.name}.`);
         notify(-1, `${cv.name} har fuldført vidunderet ${WONDERS[b.key].name} i ${c.name}.`, idx(c.x, c.y), cv.human ? 'good' : 'info');
         for (const o of G.cities) if (o !== c && o.build && o.build.kind === 'wonder' && o.build.key === b.key) { o.build = null; notify(o.civ, `${o.name} kan ikke længere bygge ${WONDERS[b.key].name}.`, idx(o.x, o.y), 'warn'); }
       }
@@ -1404,6 +1420,7 @@ function declareWar(a, b, quiet, viaPact) {
   meet(a, b);
   onWarDeclared(a, b, viaPact);
   if (civ(b).minor && isMajor(civ(a))) civ(b).inf[a] = -50;
+  if (isMajor(civ(a)) && isMajor(civ(b))) chron(a, 'war', `${civ(a).name} erklærede krig mod ${civ(b).name}.`);
   if (quiet) return;
   if (civ(a).human) notify(a, `Du har erklæret krig mod ${civ(b).name}.`, null, 'bad');
   if (civ(b).human) notify(b, `${civ(a).name} har erklæret krig mod dig!`, null, 'bad');
@@ -1414,6 +1431,7 @@ function makePeace(a, b) {
   G.war[a][b] = G.war[b][a] = false;
   G.warSince[a][b] = G.warSince[b][a] = G.turn;
   remember(a, b, 'peace', 8, 'Sluttede fred med os', 20); remember(b, a, 'peace', 8, 'Sluttede fred med os', 20);
+  if (isMajor(civ(a)) && isMajor(civ(b))) chron(a, 'peace', `${civ(a).name} og ${civ(b).name} sluttede fred.`);
   if (civ(a).human) notify(a, `Der er nu fred mellem dig og ${civ(b).name}.`, null, 'good');
   if (civ(b).human) notify(b, `Der er nu fred mellem dig og ${civ(a).name}.`, null, 'good');
   for (const h of humansWhoMet(a, b)) notify(h, `${civ(a).name} og ${civ(b).name} har sluttet fred.`, null, 'info');
@@ -1680,6 +1698,7 @@ function endTurn() {
   validateRoutes();
   decayMemory();
   processReligion();
+  crisisTick();
   G.turn++;
   processUN();
   recordHistory();
