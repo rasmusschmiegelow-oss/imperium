@@ -39,6 +39,8 @@ const GUIDE = [
   { text: 'Hold byerne tilfredse: templer, markeder, garnisoner og luksusvarer som vin og pelse giver flere arbejdende indbyggere.', done: () => G.turn > 50, manual: true },
   { text: 'Udforsk ruiner med dine enheder for guld, teknologi og nye enheder. Enheder får erfaring i kamp, og ved hvert niveau kan du vælge en forfremmelse i enhedspanelet.', done: () => G.turn > 35, manual: true },
   { text: 'Når du opdager Monarki eller Filosofi, kan du skifte regeringsform under Regering øverst. Heste og jern på dit land giver adgang til ryttere og sværdkæmpere.', done: () => G.turn > 60 || human().gov !== 'despotism', manual: true },
+  { text: 'Byg en helligdom (Mystik) for at samle tro. Med nok tro kan du grundlægge din egen religion under Riget → Religion og sprede den med missionærer.', done: () => G.turn > 80 || !!civReligion(G.human), manual: true },
+  { text: 'Under Riget → Sejr kan du følge kapløbet om de fem sejrsformer, og under Statistik kan du se, hvordan rigerne udvikler sig.', done: () => G.turn > 100, manual: true },
   { text: 'Med Sejlads kan landenheder sejle langs kysten, og med Valuta kan karavaner oprette handelsruter. Bystater bliver dine venner, hvis du giver dem gaver under Diplomati.', done: () => G.turn > 70, manual: true },
 ];
 
@@ -55,7 +57,8 @@ const UI = {
     this.bindInput();
     this.bindKeys();
     $('#btn-tech').onclick = () => this.openTech();
-    $('#btn-gov').onclick = () => this.openGov();
+    $('#btn-gov').onclick = () => this.openRealm(canFoundReligion(human()) ? 'religion' : 'gov');
+    $('#stat-faith').onclick = () => this.openRealm('religion');
     $('#stat-sci').onclick = () => this.openTech();
     $('#stat-gold').onclick = () => this.openDiplo();
     $('#stat-happy').onclick = () => {
@@ -80,15 +83,34 @@ const UI = {
       pickEl.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
     };
     $('#btn-continue').hidden = !hasSave();
+    const renderPlayers = () => {
+      const n = +$('#opt-players').value;
+      const box = $('#extra-players');
+      const used = [chosen];
+      let html = '';
+      for (let k = 2; k <= n; k++) {
+        const def = CIVS.find(c => !used.includes(c.key)); used.push(def.key);
+        html += `<label class="field" for="opt-p${k}"><span class="label">Spiller ${k}</span><select id="opt-p${k}">${CIVS.map(c => `<option value="${c.key}" ${c.key === def.key ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>`;
+      }
+      box.innerHTML = html;
+      box.hidden = n < 2;
+    };
+    $('#opt-players').onchange = renderPlayers;
+    renderPlayers();
     $('#btn-start').onclick = () => {
       const mv = $('#opt-minors').value;
-      const opts = { civ: chosen, opponents: +$('#opt-opp').value, size: $('#opt-size').value, difficulty: $('#opt-diff').value,
+      const n = +$('#opt-players').value;
+      const humans = [chosen];
+      for (let k = 2; k <= n; k++) { const v = $('#opt-p' + k).value; if (!humans.includes(v)) humans.push(v); }
+      const opts = { civ: chosen, humans, opponents: Math.min(+$('#opt-opp').value, CIVS.length - humans.length), size: $('#opt-size').value, difficulty: $('#opt-diff').value,
         mapType: $('#opt-map').value, minors: mv === 'auto' ? undefined : +mv, tutorial: $('#opt-guide').checked };
       newGame(opts);
       this.enterGame();
-      notify(G.human, `Velkommen, hersker over ${human().name}. Grundlæg din første by med bosætteren (tast B).`, null, 'good');
+      for (const id of G.humans) notify(id, `Velkommen, hersker over ${civ(id).name}. Grundlæg din første by med bosætteren (tast B).`, null, 'good');
+      if (G.humans.length > 1) this.showHandover(true);
     };
     $('#btn-continue').onclick = () => { if (loadGame()) this.enterGame(); };
+    $('#btn-load').onclick = () => this.openLoad();
     // baggrundskort til startskærmen
     newGame({ civ: 'dk', opponents: 3, size: 'medium', difficulty: 'normal', mapType: 'continents', tutorial: false });
     G.explored.fill(1); VIS = new Uint8Array(G.w * G.h).fill(1);
@@ -110,6 +132,29 @@ const UI = {
     if (first) this.centerOn(idx(first.x, first.y));
     this.selectNext(true);
     this.refresh();
+  },
+
+  // Skærm mellem spillerne ved samme skærm
+  showHandover(first) {
+    const h = human();
+    const el = $('#handover');
+    const inbox = (h.inbox || []).slice(-8);
+    el.innerHTML = `<div class="ho-inner">
+      <div class="ho-icon">${ART.miscGlyph('players', 40)}</div>
+      <div class="label">Spiller ${G.humans.indexOf(h.id) + 1} af ${G.humans.length}</div>
+      <h2 style="color:${h.color}">${esc(h.name)}</h2>
+      <p>${first ? 'Spillet begynder.' : `Det er din tur. ${yearLabel(G.turn)}, tur ${G.turn}.`} De andre spillere skal se væk.</p>
+      ${inbox.length ? `<div class="ho-log">${inbox.map(e => `<div class="${e.kind}">${esc(e.text)}</div>`).join('')}</div>` : ''}
+      <button type="button" class="primary" id="ho-go">Start min tur</button></div>`;
+    el.hidden = false;
+    h.inbox = [];
+    $('#ho-go').onclick = () => {
+      el.hidden = true;
+      const first = civUnits(G.human)[0] || civCities(G.human)[0];
+      const c = capitalOf(G.human) || first;
+      if (c) this.centerOn(idx(c.x, c.y));
+      this.selectNext(true); this.refresh(); this.nextOffer();
+    };
   },
 
   // ---------- Kamera ----------
@@ -240,7 +285,7 @@ const UI = {
       if (k === 'd' || k === 'D') { this.openDiplo(); return; }
       if (k === 'n' || k === 'N' || k === 'Tab') { e.preventDefault(); this.selectNext(); return; }
       if (!u) return;
-      const map = { ' ': 'skip', f: 'fort', F: 'fort', b: 'found', B: 'found', i: 'farm', I: 'farm', m: 'mine', M: 'mine', r: 'road', R: 'road', c: 'chop', C: 'chop', a: 'auto', A: 'auto', Delete: 'disband', Backspace: 'disband', h: 'home', H: 'home', u: 'upgrade', U: 'upgrade', g: 'gp', G: 'gp', e: 'route', E: 'route' };
+      const map = { p: 'spread', P: 'spread', ' ': 'skip', f: 'fort', F: 'fort', b: 'found', B: 'found', i: 'farm', I: 'farm', m: 'mine', M: 'mine', r: 'road', R: 'road', c: 'chop', C: 'chop', a: 'auto', A: 'auto', Delete: 'disband', Backspace: 'disband', h: 'home', H: 'home', u: 'upgrade', U: 'upgrade', g: 'gp', G: 'gp', e: 'route', E: 'route' };
       if (map[k]) { e.preventDefault(); this.doAction(map[k]); }
     });
   },
@@ -328,6 +373,11 @@ const UI = {
       if (own.length > 1) { const k = own.indexOf(u); this.select(own[(k + 1) % own.length]); }
       return;
     }
+    if (u && isAir(u)) {
+      if (canAttack(u, i) && VIS[i]) { attack(u, i); SFX.play('combat'); this.hideTip(); this.afterAction(u); return; }
+      if (city && city.civ === G.human && rebase(u, city)) { SFX.play('move'); this.afterAction(u); return; }
+      if (i !== here && (!own.length || right)) { notify(G.human, `Fly kan kun flyve til dine byer inden for ${rebaseRange(u)} felter, eller angribe inden for ${unitRange(u)} felter.`, null, 'warn'); return; }
+    }
     if (u && (right || (!own.length && !(city && city.civ === G.human)))) {
       if (canAttack(u, i) && VIS[i]) {
         attack(u, i); SFX.play('combat'); this.hideTip(); this.afterAction(u); return;
@@ -363,6 +413,7 @@ const UI = {
 
   select(u) {
     this.sel = { unit: u.id };
+    if (isAir(u)) { this.confirmDisband = false; this.reach = new Set(u.moves > 0 ? rebaseTargets(u).map(c => idx(c.x, c.y)) : []); this.ensureVisible(idx(u.x, u.y)); this.refresh(); return; }
     this.confirmDisband = false;
     this.reach = reachable(u);
     this.ensureVisible(idx(u.x, u.y));
@@ -370,6 +421,7 @@ const UI = {
   },
 
   afterAction(u) {
+    if (u && G.units.includes(u) && isAir(u) && u.moves > 0) { this.select(u); return; }
     this.pathPreview = null;
     this.reach = null;
     if (!G.units.includes(u)) { this.sel = null; this.selectNext(); this.refresh(); return; }
@@ -410,6 +462,7 @@ const UI = {
       if (c) { const p = findPath(u, idx(c.x, c.y)); if (p) { u.path = p; followPath(u); this.afterAction(u); } }
       return;
     }
+    if (a === 'spread') { if (spreadReligion(u)) { SFX.play('tech'); if (G.units.includes(u)) this.select(u); else { this.sel = null; this.selectNext(); } } return; }
     if (a.startsWith('promo:')) { if (applyPromo(u, a.slice(6))) { SFX.play('tech'); this.select(u); } return; }
     if (a === 'upgrade') { if (canUpgrade(u)) { doUpgrade(u); SFX.play('coin'); this.afterAction(u); } return; }
     if (a === 'gp') { if (UNITS[u.type].gp && useGreatPerson(u)) { SFX.play('tech'); this.sel = null; this.selectNext(); } return; }
@@ -438,10 +491,13 @@ const UI = {
     this.sel = null; this.reach = null; this.pathPreview = null; this.hideTip();
     SFX.play('turn');
     await new Promise(r => setTimeout(r, 30));
-    try { endTurn(); } catch (err) { console.error(err); }
+    let res = null;
+    try { res = endTurn(); } catch (err) { console.error(err); }
     this.skip = new Set();
     this.busy = false; $('#busy').hidden = true;
     saveGame();
+    if (G.over) { this.refresh(); this.showGameOver(); return; }
+    if (res === 'handover') { this.sel = null; this.closeModal(true); this.refresh(); this.showHandover(false); return; }
     const after = () => {
       if (G.over) { this.refresh(); this.showGameOver(); return; }
       this.selectNext(true);
@@ -452,8 +508,11 @@ const UI = {
     this.playAnim(ANIM.events.slice(), after);
   },
   nextOffer() {
-    while (G.offers && G.offers.length) {
-      const o = G.offers.shift();
+    if (!G.offers) return;
+    for (let k = 0; k < G.offers.length; k++) {
+      const o = G.offers[k];
+      if ((o.to != null ? o.to : G.human) !== G.human) continue;
+      G.offers.splice(k, 1); k--;
       if (this.showOffer(o)) return;
     }
   },
@@ -548,7 +607,13 @@ const UI = {
     $('#stat-res').innerHTML = strat.map(k => { const a = stratAvail(h.id, k), sup = stratSupply(h.id, k); return `<span class="res ${a < 0 ? 'neg' : sup ? '' : 'none'}" title="${esc(RESOURCES[k].name)}: ${Math.max(0, a)} ledig af ${sup}">${ART.resGlyph(k, 15)}<b>${a}</b></span>`; }).join('');
     $('#stat-res').title = 'Strategiske ressourcer: ledige / i alt. Visse enheder kræver dem.';
     const gv = gov(h);
-    $('#btn-gov').innerHTML = `${ART.miscGlyph('gov_' + h.gov, 16)} ${h.gov === 'anarchy' ? `Anarki (${h.anarchy})` : gv.name}`;
+    $('#btn-gov').innerHTML = `${ART.miscGlyph('gov_' + h.gov, 16)} Riget`;
+    $('#btn-gov').title = `Regering: ${h.gov === 'anarchy' ? `Anarki (${h.anarchy} ture)` : gv.name}. Religion, sejr og statistik.`;
+    const rel = civReligion(h.id);
+    const fInc = civCities(h.id).reduce((a, c) => a + cityFaith(c), 0);
+    $('#stat-faith').innerHTML = `${ART.miscGlyph('faith', 15)}<b class="faith">${Math.floor(h.faith || 0)}</b><span>+${fInc}</span>`;
+    $('#stat-faith').title = rel ? `Tro. Din religion: ${RELIGIONS[rel].name}. Køb missionærer i byer, der følger den.` : canFoundReligion(h) ? 'Du kan grundlægge en religion nu!' : `Tro. ${religionSlotsLeft() > 0 ? `En religion koster ${religionCost()} tro.` : 'Der er ikke flere religioner at grundlægge.'}`;
+    $('#stat-faith').classList.toggle('ready', canFoundReligion(h));
     const b = this.blocker();
     const et = $('#endturn');
     et.textContent = b ? b.label : 'Afslut tur';
@@ -595,6 +660,12 @@ const UI = {
           }
           acts.push(A('auto', 'Automatisér', 'A', !u.auto));
         }
+        if (u.type === 'missionary') {
+          const t = spreadTarget(u);
+          acts.push(A('spread', t ? `Prædik ${esc(RELIGIONS[u.rel].name)} i ${esc(t.name)}` : 'Prædik (stå i eller ved en by)', 'P', !!t, 'primary'));
+          extra = `<div class="sub" style="margin-top:8px">${esc(RELIGIONS[u.rel].name)} · ${u.charges || 1} ${u.charges === 1 ? 'prædiken' : 'prædikener'} tilbage</div>`;
+        }
+        if (isAir(u)) extra = `<div class="sub" style="margin-top:8px">Klik på et rødt felt for at angribe (${unitRange(u)} felter), eller på en af dine byer for at omplacere flyet (${rebaseRange(u)} felter).</div>`;
         if (u.type === 'caravan') {
           const here = routeHere(u);
           if (here) acts.push(A('route', `Opret handelsrute til ${esc(here.name)}`, 'E', true, 'primary'));
@@ -884,6 +955,11 @@ const UI = {
     this.roundRect(lx, ly, total, bh, bh / 2); ctx.fill();
     if (cv.minor) { ctx.strokeStyle = cv.color; ctx.lineWidth = 1.5; ctx.stroke(); }
     ctx.fillStyle = cv.color; this.roundRect(lx, ly, popW, bh, bh / 2); ctx.fill();
+    if (c.rel && RELIGIONS[c.rel]) {
+      ctx.fillStyle = '#0f131a'; ctx.beginPath(); ctx.arc(lx + total + fs * 0.25, ly + bh / 2, fs * 0.55, 0, 7); ctx.fill();
+      ctx.strokeStyle = RELIGIONS[c.rel].color; ctx.lineWidth = Math.max(1, fs * 0.14); ctx.stroke();
+      ART.misc(ctx, 'rel_' + c.rel, lx + total + fs * 0.25, ly + bh / 2, fs * 0.8);
+    }
     ctx.fillStyle = cv.minor ? '#1b1408' : '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(c.pop), lx + popW / 2, ly + bh / 2 + 0.5);
     ctx.fillStyle = '#ece6d8'; ctx.textAlign = 'left';
@@ -928,6 +1004,14 @@ const UI = {
     const r = city ? S * 0.33 : S * 0.43;
     if (city) { cx -= S * 0.42; cy += S * 0.3; }
     this.drawToken(u, cx, cy, r, u.civ === G.human && this.needsOrders(u) && u !== sel);
+    const planes = all.filter(isAir).length;
+    if (planes && city) {
+      const [px, py] = centerI(i);
+      ctx.fillStyle = 'rgba(15,19,26,0.9)'; ctx.beginPath(); ctx.arc(px + S * 0.45, py + S * 0.3, 8, 0, 7); ctx.fill();
+      ctx.strokeStyle = civ(all.find(isAir).civ).color; ctx.lineWidth = 1.5; ctx.stroke();
+      ART.unit(ctx, 'fighter', px + S * 0.45, py + S * 0.3, 6.5);
+      if (planes > 1) { ctx.font = '700 8px "Alegreya Sans", sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(String(planes), px + S * 0.45 + 8, py + S * 0.3 - 6); }
+    }
     if (us.length > 1) {
       ctx.fillStyle = '#0f131a'; ctx.beginPath(); ctx.arc(cx + r * 0.85, cy - r * 0.85, 7, 0, 7); ctx.fill();
       ctx.strokeStyle = civ(u.civ).color; ctx.lineWidth = 1.5; ctx.stroke();
@@ -1010,12 +1094,18 @@ const UI = {
     const y = cityYields(c);
     const hp = cityHappiness(c);
     const cv = civ(c.civ);
+    const myRel = civReligion(c.civ);
+    const pres = Object.entries(c.relP || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const relBlock = `<div class="relrow">${c.rel ? `${ART.miscGlyph('rel_' + c.rel, 20)}<b style="color:${RELIGIONS[c.rel].color}">${esc(RELIGIONS[c.rel].name)}</b>${isHolyCity(c) ? '<span class="chip w">Hellig by</span>' : ''}` : '<span style="color:var(--muted)">Ingen religion endnu</span>'}</div>
+      ${pres.length ? `<div class="chips">${pres.map(([k, v]) => `<span class="chip" style="border:1px solid ${RELIGIONS[k].color}">${esc(RELIGIONS[k].name)} ${Math.round(v)}</span>`).join('')}</div>` : ''}
+      <div class="kv"><div><span>Tro</span> <b>+${cityFaith(c)}</b></div></div>
+      ${myRel ? `<div style="margin-top:6px"><button type="button" class="act" id="buymis" ${canBuyMissionary(c) ? '' : 'disabled'} title="${c.rel !== myRel ? 'Byen skal følge din religion' : ''}">${ART.unitGlyph('missionary', 16)} Køb missionær for ${missionaryCost(cv)} tro</button></div>` : ''}`;
     const growT = y.foodNet > 0 ? Math.ceil((y.need - c.food) / y.foodNet) : null;
     const cost = buildCost(c.build);
     const turns = (b) => { const left = Math.max(0, buildCost(b) - c.prod); return y.p > 0 ? Math.max(1, Math.ceil(left / y.p)) : '∞'; };
     const bc = buyCost(c);
     const opts = buildOptions(c);
-    const glyphFor = (o) => o.kind === 'unit' ? ART.unitGlyph(o.key, 22, '#ECE6D8') : ART.miscGlyph(o.kind === 'bld' ? 'bld' : o.kind === 'wonder' ? 'wonder' : o.key === 'spaceship' ? 'spaceship' : 'wealth');
+    const glyphFor = (o) => o.kind === 'unit' ? ART.unitGlyph(o.key, 22, '#ECE6D8') : ART.miscGlyph(o.kind === 'bld' ? (o.key === 'shrine' ? 'shrine' : 'bld') : o.kind === 'wonder' ? (o.key === 'un' ? 'v_diplo' : 'wonder') : o.key === 'spaceship' ? 'spaceship' : 'wealth');
     const descFor = (o) => {
       if (o.kind === 'unit') { const U = UNITS[o.key]; return U.str ? `Styrke ${U.str}${U.ranged ? ` · afstand ${U.ranged}` : ''} · ${U.moves} bevægelse${U.domain === 'sea' ? ' · skib' : ''}` : U.desc; }
       return (o.kind === 'bld' ? BUILDINGS : o.kind === 'wonder' ? WONDERS : PROJECTS)[o.key].desc + (o.kind === 'bld' && BUILDINGS[o.key].upkeep ? ` · ${BUILDINGS[o.key].upkeep} guld/tur` : '');
@@ -1048,6 +1138,8 @@ const UI = {
         <div class="section-h">Tilfredshed</div>
         <div class="happy-row"><b class="${hp.unhappy ? 'unhappy' : 'happy'}">${c.pop - hp.unhappy} arbejder · ${hp.unhappy} utilfredse</b><span>Plads til ${hp.content} tilfredse</span></div>
         <div class="chips">${hp.src.map(s => `<span class="chip ${s[1] < 0 ? 'neg' : ''}">${esc(s[0])} ${s[1] > 0 ? '+' : ''}${s[1]}</span>`).join('')}</div>
+        <div class="section-h">Religion</div>
+        ${relBlock}
         <div class="section-h">Fokus</div>
         <div class="seg">${Object.entries(FOCUS).map(([k, f]) => `<button type="button" data-f="${k}" class="${(c.focus || 'balanced') === k ? 'on' : ''}">${f.name}</button>`).join('')}</div>
         <p class="hint-s">Klik på felterne omkring byen på kortet for at låse, hvilke felter indbyggerne arbejder på.${(c.locked || []).length ? ` <button type="button" class="linkbtn" id="unlock">Fjern låse (${c.locked.length})</button>` : ''}</p>
@@ -1072,6 +1164,7 @@ const UI = {
     });
     d.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { c.focus = b.dataset.f; assignAllTiles(); this.refresh(); });
     const un = d.querySelector('#unlock'); if (un) un.onclick = () => { c.locked = []; assignAllTiles(); this.refresh(); };
+    const bm = d.querySelector('#buymis'); if (bm) bm.onclick = () => { const u = buyMissionary(c); if (u) { SFX.play('tech'); notify(G.human, `En missionær er klar i ${c.name}.`, idx(c.x, c.y), 'good'); this.refresh(); } };
     const buy = d.querySelector('#buy');
     if (buy) buy.onclick = () => {
       const k = buyCost(c);
@@ -1167,7 +1260,8 @@ const UI = {
     grid.insertBefore(svg, grid.firstChild);
   },
 
-  openGov() {
+  openGov() { this.openRealm('gov'); },
+  govHtml() {
     const h = human();
     const av = govsAvailable(h);
     const cards = Object.keys(GOVS).filter(k => !GOVS[k].hidden).map(k => {
@@ -1183,11 +1277,157 @@ const UI = {
           <ul>${g.pros.map(x => `<li class="pro">${esc(x)}</li>`).join('')}${g.cons.map(x => `<li class="con">${esc(x)}</li>`).join('')}</ul></div>
         <div class="ga">${btn}</div></div>`;
     }).join('');
-    const bg = this.modal('Regering', `<p>Regeringsformen påvirker forskning, guld, produktion, tilfredshed og hvor mange enheder du kan holde gratis. Et skifte giver ${anarchyTurns(h)} ture med anarki uden forskning.</p><div class="govlist">${cards}</div>`);
+    return `<p>Regeringsformen påvirker forskning, guld, produktion, tilfredshed og hvor mange enheder du kan holde gratis. Et skifte giver ${anarchyTurns(h)} ture med anarki uden forskning.</p><div class="govlist">${cards}</div>`;
+  },
+  bindGov(bg) {
+    const h = human();
     bg.querySelectorAll('[data-gov]').forEach(b => b.onclick = () => {
       if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Bekræft revolution'; return; }
       adoptGov(h, b.dataset.gov); SFX.play('turn'); this.closeModal(); this.refresh();
     });
+  },
+
+  openRealm(tab) {
+    this.realmTab = tab || this.realmTab || 'gov';
+    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
+    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
+    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory');
+    bg.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => this.openRealm(b.dataset.tab));
+    if (this.realmTab === 'gov') this.bindGov(bg);
+    if (this.realmTab === 'religion') this.bindReligion(bg);
+    if (this.realmTab === 'stats') this.bindStats(bg);
+  },
+
+  religionHtml() {
+    const h = human();
+    const mine = civReligion(h.id);
+    const cost = religionCost();
+    let head;
+    if (mine) head = `<p>Din religion er <b style="color:${RELIGIONS[mine].color}">${esc(RELIGIONS[mine].name)}</b>. Du har ${Math.floor(h.faith)} tro. Køb missionærer for ${missionaryCost(h)} tro i byer, der følger den, og send dem til byer, der skal omvendes.</p>`;
+    else if (canFoundReligion(h)) {
+      const free = freeReligions();
+      const fb = Object.keys(BELIEFS).filter(k => BELIEFS[k].kind === 'founder');
+      const ob = Object.keys(BELIEFS).filter(k => BELIEFS[k].kind === 'follower');
+      head = `<p>Du har ${Math.floor(h.faith)} tro og kan grundlægge en religion for ${cost} tro. Din hovedstad bliver hellig by.</p>
+        <div class="section-h">Vælg religion</div><div class="relpick" id="rp-rel">${free.map((k, n) => `<button type="button" data-rel="${k}" class="${n === 0 ? 'on' : ''}">${ART.miscGlyph('rel_' + k, 24)}<span>${esc(RELIGIONS[k].name)}</span></button>`).join('')}</div>
+        <div class="section-h">Grundlæggerens trosretning</div><div class="blist" id="rp-f">${fb.map((k, n) => `<button type="button" class="bopt ${n === 0 ? 'on' : ''}" data-b="${k}"><span class="g">${ART.miscGlyph('faith', 18)}</span><span><span class="n">${esc(BELIEFS[k].name)}</span><span class="d">${esc(BELIEFS[k].desc)}</span></span><span></span></button>`).join('')}</div>
+        <div class="section-h">Tilhængernes trosretning</div><div class="blist" id="rp-o">${ob.map((k, n) => `<button type="button" class="bopt ${n === 0 ? 'on' : ''}" data-b="${k}"><span class="g">${ART.miscGlyph('faith', 18)}</span><span><span class="n">${esc(BELIEFS[k].name)}</span><span class="d">${esc(BELIEFS[k].desc)}</span></span><span></span></button>`).join('')}</div>
+        <div style="margin-top:12px"><button type="button" class="act primary" id="rp-go">Grundlæg religionen</button></div>`;
+    } else head = `<p>Du har ${Math.floor(h.faith || 0)} tro. ${religionSlotsLeft() > 0 ? `En religion koster ${cost} tro. Helligdomme, templer, katedraler, Stonehenge og visse naturvidundere giver tro. Der er plads til ${religionSlotsLeft()} religion${religionSlotsLeft() === 1 ? '' : 'er'} mere i verden.` : 'Alle religioner i verden er grundlagt. Byerne kan stadig følge en religion og få dens fordele.'}</p>`;
+    const list = Object.values(G.religions).map(r => {
+      const R = RELIGIONS[r.key], f = civ(r.founder), holy = cityById(r.holy);
+      const known = G.met[h.id][r.founder];
+      return `<div class="drow"><i style="background:${R.color}"></i><div><div class="nm">${ART.miscGlyph('rel_' + r.key, 18)} ${esc(R.name)}</div>
+        <div class="meta">${known ? `Grundlagt af ${esc(f.name)}` : 'Grundlagt af et ukendt folk'} · hellig by: ${holy && G.explored[idx(holy.x, holy.y)] ? esc(holy.name) : 'ukendt'} · ${followers(r.key)} byer</div>
+        <div class="reasons">${r.beliefs.map(b => `<span class="p" title="${esc(BELIEFS[b].desc)}">${esc(BELIEFS[b].name)}</span>`).join('')}</div></div><span></span></div>`;
+    }).join('');
+    return head + `<div class="section-h">Verdens religioner</div>${list ? `<div class="diplo">${list}</div>` : '<p class="sub">Ingen religioner er grundlagt endnu.</p>'}`;
+  },
+  bindReligion(bg) {
+    const one = (sel) => bg.querySelectorAll(sel + ' button').forEach(b => b.onclick = () => { bg.querySelectorAll(sel + ' button').forEach(x => x.classList.toggle('on', x === b)); });
+    one('#rp-rel'); one('#rp-f'); one('#rp-o');
+    const go = bg.querySelector('#rp-go');
+    if (go) go.onclick = () => {
+      const rel = bg.querySelector('#rp-rel .on').dataset.rel, f = bg.querySelector('#rp-f .on').dataset.b, o = bg.querySelector('#rp-o .on').dataset.b;
+      if (foundReligion(human(), rel, f, o)) { SFX.play('tech'); this.openRealm('religion'); this.refresh(); }
+    };
+  },
+
+  victoryHtml() {
+    const h = human();
+    const ms = majors().filter(c => c.alive && (c.id === h.id || G.met[h.id][c.id]));
+    const unknown = majors().filter(c => c.alive && c.id !== h.id && !G.met[h.id][c.id]).length;
+    const bar = (v, col) => `<span class="vbar"><span style="width:${clamp(v * 100, 0, 100)}%;background:${col}"></span></span>`;
+    const alive = majors().filter(c => c.alive).length;
+    const f = unForecast();
+    const rows = ms.map(c => {
+      const sp = c.techs.includes('spaceflight') ? 1 : c.techs.includes('rocketry') ? 0.6 : Math.min(0.5, c.techs.length / Object.keys(TECHS).length * 0.5);
+      const ship = civCities(c.id).find(x => x.build && x.build.key === 'spaceship');
+      return `<tr><td><i style="background:${c.color}"></i>${esc(c.name)}</td>
+        <td>${bar(cultureProgress(c.id), '#c99ae6')}<span>${Math.round(c.cultureTotal)}/${VICTORY.culture} · ${cultureWonders(c.id)}/${VICTORY.cultureWonders} vidundere</span></td>
+        <td>${bar(ship ? 0.8 + 0.2 * ship.prod / PROJECTS.spaceship.cost : sp, '#72b6ea')}<span>${ship ? 'Bygger rumskib' : c.techs.includes('spaceflight') ? 'Kan bygge rumskib' : `${c.techs.length} teknologier`}</span></td>
+        <td>${f.cands.includes(c.id) ? `<b>${f.votes[c.id]}</b>/${f.need} stemmer` : '–'}</td>
+        <td>${score(c.id)}</td></tr>`;
+    }).join('');
+    return `<div class="vtypes">
+      <div>${ART.miscGlyph('v_conquest', 28)}<b>Erobring</b><span>Vær den sidste stormagt tilbage. ${alive - 1} rivaler er tilbage.</span></div>
+      <div>${ART.miscGlyph('spaceship', 28)}<b>Rumskib</b><span>Forsk i Rumfart, og byg rumskibet (${PROJECTS.spaceship.cost} produktion).</span></div>
+      <div>${ART.miscGlyph('v_culture', 28)}<b>Kultur</b><span>Saml ${VICTORY.culture.toLocaleString('da-DK')} kultur, og ej ${VICTORY.cultureWonders} vidundere.</span></div>
+      <div>${ART.miscGlyph('v_diplo', 28)}<b>Diplomati</b><span>${G.wonders.un != null ? `De Forenede Nationer er bygget af ${esc(civ(unOwner()).name)}. Næste afstemning i tur ${G.un.next || '?'}.` : 'Byg De Forenede Nationer (Computere), og vind en afstemning med flertal.'}</span></div>
+      <div>${ART.miscGlyph('v_points', 28)}<b>Point</b><span>Flest point efter tur 400. Der er ${Math.max(0, 401 - G.turn)} ture tilbage.</span></div>
+    </div>
+    <div class="scroll-x"><table class="vtable"><thead><tr><th>Folk</th><th>Kultur</th><th>Rumkapløb</th><th>FN</th><th>Point</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${unknown ? `<p class="sub">${unknown} folk, du ikke har mødt, vises ikke.</p>` : ''}`;
+  },
+
+  statsHtml() {
+    this.statKey = this.statKey || 's';
+    const keys = [['s', 'Point'], ['m', 'Militær'], ['k', 'Teknologier'], ['p', 'Befolkning'], ['c', 'Byer'], ['u', 'Kultur']];
+    const dem = demographics(G.human);
+    return `<div class="seg" id="st-keys">${keys.map(([k, n]) => `<button type="button" data-sk="${k}" class="${this.statKey === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="chart">${this.chartSvg(this.statKey)}</div>
+      <div class="section-h">Demografi</div>
+      <div class="scroll-x"><table class="vtable"><thead><tr><th></th><th>Dig</th><th>Placering</th><th>Bedst</th><th>Gennemsnit</th><th>Dårligst</th></tr></thead><tbody>
+      ${dem.map(d => `<tr><td>${d.name}</td><td><b>${d.mine.toLocaleString('da-DK')}</b></td><td>${d.rank}. af ${d.n}</td><td>${d.best.toLocaleString('da-DK')}</td><td>${d.avg.toLocaleString('da-DK')}</td><td>${d.worst.toLocaleString('da-DK')}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  },
+  bindStats(bg) { bg.querySelectorAll('[data-sk]').forEach(b => b.onclick = () => { this.statKey = b.dataset.sk; this.openRealm('stats'); }); },
+  chartSvg(key, forAll) {
+    const H = G.hist || [];
+    if (H.length < 2) return '<p class="sub">Grafen fyldes ud, efterhånden som turene går.</p>';
+    const ms = majors();
+    const show = ms.map((c, n) => ({ c, n })).filter(o => forAll || o.c.id === G.human || G.met[G.human][o.c.id]);
+    const W = 640, Hh = 220, pl = 44, pr = 12, pt = 10, pb = 26;
+    let max = 1; for (const r of H) for (const o of show) max = Math.max(max, r[key][o.n] || 0);
+    const nice = (v) => { const p = Math.pow(10, Math.floor(Math.log10(v))); const m = v / p; return (m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; };
+    max = nice(max);
+    const t0 = H[0].t, t1 = H[H.length - 1].t;
+    const X = (t) => pl + (W - pl - pr) * (t - t0) / Math.max(1, t1 - t0);
+    const Y = (v) => pt + (Hh - pt - pb) * (1 - v / max);
+    const step = Math.max(1, Math.ceil(H.length / 160));
+    let grid = '';
+    for (let k = 0; k <= 4; k++) { const v = max * k / 4; grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="gl"/><text x="${pl - 6}" y="${Y(v) + 4}" text-anchor="end">${Math.round(v).toLocaleString('da-DK')}</text>`; }
+    grid += `<text x="${pl}" y="${Hh - 6}">Tur ${t0}</text><text x="${W - pr}" y="${Hh - 6}" text-anchor="end">Tur ${t1}</text>`;
+    const lines = show.map(o => {
+      const pts = H.filter((r, k) => k % step === 0 || k === H.length - 1).map(r => `${X(r.t).toFixed(1)},${Y(r[key][o.n] || 0).toFixed(1)}`).join(' ');
+      const last = H[H.length - 1][key][o.n] || 0;
+      return `<polyline points="${pts}" fill="none" stroke="${o.c.color}" stroke-width="${o.c.id === G.human ? 3 : 2}" stroke-linejoin="round"/><circle cx="${X(t1)}" cy="${Y(last)}" r="3.5" fill="${o.c.color}"/>`;
+    }).join('');
+    const legend = show.map(o => `<span><i style="background:${o.c.color}"></i>${esc(o.c.name)}</span>`).join('');
+    return `<svg viewBox="0 0 ${W} ${Hh}" class="chartsvg" role="img" aria-label="Udvikling over tid">${grid}${lines}</svg><div class="legend">${legend}</div>`;
+  },
+
+  // ---------- Gemte spil ----------
+  async slotSave(n) {
+    const data = saveData();
+    const meta = { name: `${human().name} · ${yearLabel(G.turn)}`, turn: G.turn, date: new Date().toLocaleString('da-DK'), humans: G.humans.length };
+    const packed = await packSave(data);
+    try { localStorage.setItem('imperium-slot-' + n, JSON.stringify({ meta, packed })); return true; } catch (e) { return false; }
+  },
+  slotMeta(n) { try { const s = localStorage.getItem('imperium-slot-' + n); return s ? JSON.parse(s).meta : null; } catch (e) { return null; } },
+  async slotLoad(n) {
+    try { const s = JSON.parse(localStorage.getItem('imperium-slot-' + n)); const data = await unpackSave(s.packed); return loadFromString(data); } catch (e) { return false; }
+  },
+  exportSave() {
+    const blob = new Blob([saveData()], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `imperium-${human().name.toLowerCase()}-tur-${G.turn}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  },
+  importSave(file, done) {
+    const r = new FileReader();
+    r.onload = () => done(loadFromString(String(r.result)));
+    r.readAsText(file);
+  },
+  openLoad() {
+    const slots = [1, 2, 3].map(n => ({ n, m: this.slotMeta(n) }));
+    const bg = this.modal('Indlæs spil', `<div class="slots">${slots.map(o => `<div class="slot"><div><b>Plads ${o.n}</b><span>${o.m ? `${esc(o.m.name)} · ${esc(o.m.date)}` : 'Tom'}</span></div><button type="button" class="act primary" data-load="${o.n}" ${o.m ? '' : 'disabled'}>Indlæs</button></div>`).join('')}</div>
+      <div class="section-h">Fra fil</div><p>Indlæs et spil, du har gemt som fil.</p><input type="file" id="load-file" accept=".json,application/json">
+      <p class="sub" id="load-msg"></p>`);
+    bg.querySelectorAll('[data-load]').forEach(b => b.onclick = async () => { if (await this.slotLoad(+b.dataset.load)) { this.closeModal(); this.enterGame(); } else bg.querySelector('#load-msg').textContent = 'Kunne ikke indlæse spillet.'; });
+    bg.querySelector('#load-file').onchange = (e) => { const f = e.target.files[0]; if (f) this.importSave(f, ok => { if (ok) { this.closeModal(); this.enterGame(); } else bg.querySelector('#load-msg').textContent = 'Filen kunne ikke læses som et Imperium-spil.'; }); };
   },
 
   openDiplo() {
@@ -1221,6 +1461,8 @@ const UI = {
       const mil = ratio > 1.4 ? 'langt stærkere end dig' : ratio > 1.1 ? 'stærkere end dig' : ratio > 0.9 ? 'jævnbyrdig' : ratio > 0.6 ? 'svagere end dig' : 'langt svagere end dig';
       const since = G.turn - G.warSince[h.id][c.id];
       const btn = war ? `<button type="button" class="act" data-p="${c.id}">Tilbyd fred</button>` : `<button type="button" class="act danger" data-w="${c.id}" ${since < 10 && G.warSince[h.id][c.id] ? 'disabled title="Fredsaftalen er for ny"' : ''}>Erklær krig</button>`;
+      if (c.human) return `<div class="drow"><i style="background:${c.color}"></i><div><div class="nm">${esc(c.name)}<span class="status ${war ? 'war' : 'peace'}">${war ? 'Krig' : 'Fred'}</span><span class="chip w">Spiller</span></div>
+        <div class="meta">${civCities(c.id).length} byer · militært ${mil} · ${score(c.id)} point</div></div><div class="btns">${btn}</div></div>`;
       const at = attitude(c.id, h.id), ai = attitudeInfo(at.score);
       const why = at.reasons.length ? at.reasons.map(r => `${r[1] > 0 ? '+' : ''}${r[1]} ${r[0]}`).join('\n') : 'Ingen særlige grunde endnu';
       const agr = [hasPact(h.id, c.id) ? `<span class="chip ok">${ART.miscGlyph('dip_pact', 13)} Forsvarspagt</span>` : '', hasOB(h.id, c.id) ? `<span class="chip">${ART.miscGlyph('dip_ob', 13)} Åbne grænser</span>` : ''].join('');
@@ -1246,7 +1488,7 @@ const UI = {
     const bg = this.modal('Diplomati', `<p>Dit rige: ${civCities(h.id).length} byer, ${score(h.id)} point. Guld ${fmt(h.gold)} (${civIncome(h.id).gold >= 0 ? '+' : ''}${fmt(civIncome(h.id).gold)} pr. tur, heraf ${upkeep(h.id)} i vedligehold). ${gp}.</p>
       <div class="diplo">${rows}</div>
       ${minors.length ? `<div class="section-h">Bystater</div><div class="diplo">${mrows}</div>` : ''}
-      <div class="section-h">Seneste begivenheder</div><div class="log">${G.log.slice(-40).reverse().map(e => `<div class="${e.kind}"><em>Tur ${e.turn}</em>${esc(e.text)}</div>`).join('') || '<div>Intet endnu.</div>'}</div>`, '', true);
+      <div class="section-h">Seneste begivenheder</div><div class="log">${(human().log || G.log).slice(-40).reverse().map(e => `<div class="${e.kind}"><em>Tur ${e.turn}</em>${esc(e.text)}</div>`).join('') || '<div>Intet endnu.</div>'}</div>`, '', true);
     const reopen = () => { const sc = bg.querySelector('.body').scrollTop; this.openDiplo(); const nb = document.querySelector('.modal-bg .body'); if (nb) nb.scrollTop = sc; this.refresh(); };
     bg.querySelectorAll('[data-trade]').forEach(b => b.onclick = () => { const id = +b.dataset.trade; this.diploOpen[id] = !this.diploOpen[id]; this.diploMsg[id] = null; reopen(); });
     const say = (id, ok, text) => { this.diploMsg[id] = { ok, text }; };
@@ -1286,6 +1528,7 @@ const UI = {
     });
     bg.querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
       const id = +b.dataset.p;
+      if (civ(id).human) { G.offers.push({ type: 'peace', from: h.id, to: id }); b.disabled = true; b.textContent = 'Tilbud sendt'; return; }
       if (aiAcceptPeace(civ(id), h.id)) { makePeace(h.id, id); reopen(); }
       else { b.disabled = true; b.textContent = `${civ(id).name} afviser`; }
     });
@@ -1370,9 +1613,16 @@ const UI = {
       <dt>Kort</dt><dd>Kortet går rundt som en globus. Træk for at panorere, rul eller knib for at zoome, piletaster flytter kortet.</dd>
       <dt>Byer</dt><dd>Åbn en by for at vælge produktion og fokus. Klik på felterne omkring byen for at låse, hvor indbyggerne arbejder. Utilfredse indbyggere arbejder ikke.</dd>
       <dt>Taster</dt><dd>Enter afslut tur · N næste enhed · Mellemrum spring over · F befæst · B grundlæg by · I farm · M mine · R vej · C ryd skov · A automatisér · H til nærmeste by · U opgradér · G brug stor personlighed · E handelsrute · T teknologi · D diplomati</dd>
-      <dt>Sejr</dt><dd>Udslet alle andre stormagter, eller forsk dig frem til Rumfart og byg rumskibet. Efter tur 400 vinder højeste pointtal.</dd>
+      <dt>Sejr</dt><dd>Erobring, rumskib, kultur (${VICTORY.culture.toLocaleString('da-DK')} kultur og ${VICTORY.cultureWonders} vidundere) eller diplomati (flertal i De Forenede Nationer). Efter tur 400 vinder højeste pointtal. Se fremskridt under Riget → Sejr.</dd>
+      <dt>Religion og fly</dt><dd>Tro fra helligdomme og templer lader dig grundlægge en religion og købe missionærer (tast P for at prædike). Fly står i byer: klik på et mål for at angribe eller på en by for at omplacere.</dd>
       <dt>Gemning</dt><dd>Spillet gemmes automatisk i denne browser efter hver tur.</dd>
-    </dl>`, `<button type="button" class="act" id="m-new">Nyt spil</button><button type="button" class="act" id="m-save">Gem nu</button><button type="button" class="act primary" id="m-close">Fortsæt</button>`);
+    </dl>
+      <div class="section-h">Gem spillet</div>
+      <div class="slots">${[1, 2, 3].map(n => { const m = this.slotMeta(n); return `<div class="slot"><div><b>Plads ${n}</b><span>${m ? `${esc(m.name)} · ${esc(m.date)}` : 'Tom'}</span></div><button type="button" class="act" data-save="${n}">${m ? 'Overskriv' : 'Gem her'}</button></div>`; }).join('')}</div>
+      <div class="actions-row"><button type="button" class="act" id="m-export">Gem som fil</button><button type="button" class="act" id="m-load">Indlæs …</button></div>`, `<button type="button" class="act" id="m-new">Nyt spil</button><button type="button" class="act" id="m-save">Gem nu</button><button type="button" class="act primary" id="m-close">Fortsæt</button>`);
+    bg.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => { const n = +b.dataset.save; if (b.dataset.sure || !this.slotMeta(n)) { b.textContent = (await this.slotSave(n)) ? 'Gemt' : 'Ikke plads'; b.disabled = true; } else { b.dataset.sure = '1'; b.textContent = 'Bekræft overskriv'; } });
+    bg.querySelector('#m-export').onclick = () => this.exportSave();
+    bg.querySelector('#m-load').onclick = () => this.openLoad();
     bg.querySelector('#snd').onchange = (e) => SFX.setSound(e.target.checked);
     bg.querySelector('#mus').onchange = (e) => SFX.setMusic(e.target.checked);
     bg.querySelector('#gd').onchange = (e) => { if (!G.tutorial) G.tutorial = { on: false, step: 0 }; G.tutorial.on = e.target.checked; this.renderGuide(); };
@@ -1393,12 +1643,14 @@ const UI = {
       title = 'Sejr!';
       text = o.how === 'rum' ? `Dit rumskib er på vej mod Alpha Centauri. ${h.name} har vundet kapløbet om stjernerne i ${yearLabel(G.turn)}.`
         : o.how === 'erobring' ? `Alle rivaler er besejret. ${h.name} hersker over hele verden fra ${yearLabel(G.turn)}.`
+        : o.how === 'kultur' ? `${h.name}s kunst, tro og vidundere har gjort riget til verdens kulturelle centrum i ${yearLabel(G.turn)}.`
+        : o.how === 'diplomati' ? `De Forenede Nationer har valgt ${h.name} som verdensleder i ${yearLabel(G.turn)}.`
         : `Tiden er gået, og ${h.name} har flest point (${score(h.id)}).`;
     } else {
       title = 'Nederlag';
-      text = o.how === 'rum' ? `${civ(o.winner).name} sendte det første rumskib af sted.` : `${civ(o.winner).name} sluttede med flest point.`;
+      text = o.how === 'rum' ? `${civ(o.winner).name} sendte det første rumskib af sted.` : o.how === 'kultur' ? `${civ(o.winner).name} vandt en kulturel sejr.` : o.how === 'diplomati' ? `${civ(o.winner).name} blev valgt som verdensleder i De Forenede Nationer.` : o.how === 'erobring' ? `${civ(o.winner).name} har erobret verden.` : `${civ(o.winner).name} sluttede med flest point.`;
     }
-    const bg = this.modal(title, `<p>${esc(text)}</p><p>Dine point: <b>${score(h.id)}</b> · Tur ${G.turn}</p>`,
+    const bg = this.modal(title, `<p>${esc(text)}</p><p>Dine point: <b>${score(h.id)}</b> · Tur ${G.turn}</p><div class="chart">${this.chartSvg('s', true)}</div>`,
       `<button type="button" class="act" id="g-look">Se kortet</button><button type="button" class="act primary" id="g-new">Nyt spil</button>`);
     bg.querySelector('#g-new').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ingen lager */ } location.reload(); };
     bg.querySelector('#g-look').onclick = () => { G.explored.fill(1); updateVisibility(); this.closeModal(); this.dirty(); };

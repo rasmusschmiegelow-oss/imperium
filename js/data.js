@@ -63,6 +63,12 @@ const UNITS = {
   frigate:   { name: 'Fregat',        cost: 120, str: 14, ranged: 22, range: 2, moves: 4, cls: 'naval', domain: 'sea', tech: 'gunpowder', needs: 'iron', glyph: '🚢', obs: 'combustion', up: 'battleship' },
   ironclad:  { name: 'Jernklædt',     cost: 180, str: 40, moves: 4, cls: 'naval', domain: 'sea', tech: 'industry', needs: 'coal', glyph: '⚓', up: 'battleship' },
   battleship:{ name: 'Slagskib',      cost: 320, str: 50, ranged: 60, range: 3, moves: 5, cls: 'naval', domain: 'sea', tech: 'combustion', needs: 'oil', glyph: '🛳' },
+  // fly og luftværn
+  fighter:   { name: 'Jagerfly',      cost: 220, str: 30, ranged: 32, range: 6, moves: 1, cls: 'air', domain: 'air', tech: 'flight', intercept: 6, glyph: '✈', desc: 'Står i dine byer. Angriber inden for 6 felter og opsnapper fjendtlige fly.' },
+  bomber:    { name: 'Bombefly',      cost: 280, str: 20, ranged: 60, range: 8, moves: 1, cls: 'air', domain: 'air', tech: 'flight', needs: 'oil', bombard: true, glyph: '🛩', desc: 'Står i dine byer. Bomber byer og enheder inden for 8 felter.' },
+  aagun:     { name: 'Luftværn',      cost: 160, str: 32, moves: 2, cls: 'melee', tech: 'flight', intercept: 2, glyph: '🎯', desc: 'Opsnapper fjendtlige fly inden for 2 felter.' },
+  // religion (købes for tro)
+  missionary:{ name: 'Missionær',     cost: 0,   str: 0,  moves: 3, cls: 'civil', faith: true, glyph: '⛪', desc: 'Spreder din religion til en by. Kan bruges to gange.' },
   // store personligheder (kan ikke bygges)
   gp_sci:    { name: 'Videnskabsmand', cost: 0, str: 0, moves: 2, cls: 'civil', gp: true, glyph: '🔬', desc: 'Kan bruges til et stort forskningsspring.' },
   gp_mer:    { name: 'Købmand',       cost: 0, str: 0, moves: 2, cls: 'civil', gp: true, glyph: '💰', desc: 'Kan gennemføre en handelsmission for guld.' },
@@ -77,13 +83,18 @@ const BUILDINGS = {
   walls:      { name: 'Bymur',        cost: 70,  upkeep: 1, tech: 'masonry',    desc: 'Byens forsvar +50 %', gp: 'gen' },
   library:    { name: 'Bibliotek',    cost: 80,  upkeep: 1, tech: 'writing',    desc: '+50 % forskning', gp: 'sci' },
   market:     { name: 'Marked',       cost: 90,  upkeep: 0, tech: 'currency',   desc: '+50 % guld, +1 tilfredshed, +1 handelsrute', happy: 1, gp: 'mer' },
-  temple:     { name: 'Tempel',       cost: 60,  upkeep: 1, tech: 'philosophy', desc: '+2 tilfredshed, +3 kultur', happy: 2 },
+  shrine:     { name: 'Helligdom',    cost: 40,  upkeep: 0, tech: 'mysticism',  desc: '+1 tro', faith: 1 },
+  temple:     { name: 'Tempel',       cost: 60,  upkeep: 1, tech: 'philosophy', desc: '+2 tilfredshed, +3 kultur, +2 tro', happy: 2, culture: 3, faith: 2 },
+  amphitheater: { name: 'Amfiteater', cost: 90,  upkeep: 1, tech: 'construction', desc: '+2 kultur, +1 tilfredshed', culture: 2, happy: 1 },
   arena:      { name: 'Arena',        cost: 100, upkeep: 2, tech: 'construction', desc: '+3 tilfredshed', happy: 3 },
   aqueduct:   { name: 'Akvædukt',     cost: 110, upkeep: 1, tech: 'construction', desc: 'Byen kan vokse over 8 indbyggere' },
   harbor:     { name: 'Havn',         cost: 90,  upkeep: 1, tech: 'sailing',    desc: '+1 mad fra havfelter. Kun kystbyer', coastal: true, gp: 'mer' },
   university: { name: 'Universitet',  cost: 160, upkeep: 2, tech: 'university', desc: '+50 % forskning', gp: 'sci' },
   bank:       { name: 'Bank',         cost: 150, upkeep: 0, tech: 'banking',    desc: '+50 % guld, +1 handelsrute', gp: 'mer' },
-  cathedral:  { name: 'Katedral',     cost: 140, upkeep: 2, tech: 'banking',    desc: '+3 tilfredshed', happy: 3 },
+  cathedral:  { name: 'Katedral',     cost: 140, upkeep: 2, tech: 'banking',    desc: '+3 tilfredshed, +3 tro', happy: 3, faith: 3 },
+  museum:     { name: 'Museum',       cost: 180, upkeep: 2, tech: 'gravity',    desc: '+5 kultur', culture: 5 },
+  airport:    { name: 'Lufthavn',     cost: 200, upkeep: 2, tech: 'flight',     desc: 'Fly kan omplaceres hertil fra hele riget, og nye fly bliver veteraner' },
+  broadcast:  { name: 'Radiotårn',    cost: 240, upkeep: 3, tech: 'computers',  desc: '+6 kultur, +1 tilfredshed', culture: 6, happy: 1 },
   workshop:   { name: 'Værksted',     cost: 120, upkeep: 1, tech: 'iron',       desc: '+25 % produktion', gp: 'eng' },
   factory:    { name: 'Fabrik',       cost: 240, upkeep: 3, tech: 'industry',   desc: '+50 % produktion', gp: 'eng' },
   powerplant: { name: 'Kraftværk',    cost: 260, upkeep: 3, tech: 'electricity', desc: '+50 % produktion', gp: 'eng' },
@@ -91,7 +102,8 @@ const BUILDINGS = {
 };
 
 const WONDERS = {
-  pyramids:  { name: 'Pyramiderne',          cost: 180, tech: 'masonry',    desc: '+25 % produktion i byen', gp: 'eng' },
+  stonehenge:{ name: 'Stonehenge',           cost: 140, tech: 'mysticism',  desc: '+4 tro i byen', faith: 4 },
+  pyramids:  { name: 'Pyramiderne',          cost: 180, tech: 'masonry',    desc: '+25 % produktion i byen. Skift af regering giver kun 1 tur anarki', gp: 'eng' },
   gardens:   { name: 'De Hængende Haver',    cost: 200, tech: 'pottery',    desc: '+1 tilfredshed i alle dine byer' },
   colossus:  { name: 'Kolossen',             cost: 160, tech: 'bronze',     desc: '+1 handel på alle havfelter byen arbejder', gp: 'mer' },
   library:   { name: 'Det Store Bibliotek',  cost: 260, tech: 'philosophy', desc: '+8 forskning i byen', gp: 'sci' },
@@ -99,6 +111,7 @@ const WONDERS = {
   newton:    { name: 'Newtons Kollegium',    cost: 420, tech: 'gravity',    desc: '+100 % forskning i byen', gp: 'sci' },
   adamsmith: { name: 'Adam Smiths Handelshus', cost: 450, tech: 'banking',  desc: 'Betaler vedligehold for alle bygninger med 1 i upkeep', gp: 'mer' },
   hoover:    { name: 'Hoover-dæmningen',     cost: 600, tech: 'electricity', desc: '+25 % produktion i alle byer', gp: 'eng' },
+  un:        { name: 'De Forenede Nationer', cost: 700, tech: 'computers',  desc: 'Hver 10. tur stemmer verden om en verdensleder. Flertal giver diplomatisk sejr' },
 };
 
 const PROJECTS = {
@@ -117,6 +130,7 @@ const TECHS = {
   riding:       { name: 'Ridning',           cost: 50,   pre: ['wheel'],                era: 0 },
   writing:      { name: 'Skrift',            cost: 50,   pre: ['pottery'],              era: 0 },
   masonry:      { name: 'Murværk',           cost: 50,   pre: ['mining'],               era: 0 },
+  mysticism:    { name: 'Mystik',            cost: 40,   pre: ['pottery'],              era: 0 },
   monarchy:     { name: 'Monarki',           cost: 60,   pre: ['bronze', 'writing'],    era: 0 },
   iron:         { name: 'Jernbearbejdning',  cost: 85,   pre: ['bronze'],               era: 1 },
   math:         { name: 'Matematik',         cost: 85,   pre: ['writing', 'wheel'],     era: 1 },
@@ -138,6 +152,7 @@ const TECHS = {
   ballistics:   { name: 'Ballistik',         cost: 740,  pre: ['rifling'],              era: 4 },
   communism:    { name: 'Kommunisme',        cost: 650,  pre: ['industry', 'philosophy'], era: 4 },
   combustion:   { name: 'Forbrændingsmotor', cost: 860,  pre: ['electricity', 'rifling'], era: 5 },
+  flight:       { name: 'Luftfart',          cost: 820,  pre: ['combustion'],           era: 5 },
   computers:    { name: 'Computere',         cost: 960,  pre: ['electricity'],          era: 5 },
   rocketry:     { name: 'Raketter',          cost: 1150, pre: ['computers', 'combustion'], era: 5 },
   spaceflight:  { name: 'Rumfart',           cost: 1450, pre: ['rocketry'],             era: 5 },
@@ -152,6 +167,7 @@ const TECH_NOTES = {
   democracy: 'Regeringsform: Demokrati',
   communism: 'Regeringsform: Kommunisme',
   metallurgy: 'Viser kul på kortet',
+  mysticism: 'Tro: grundlæg en religion',
   electricity: 'Viser olie på kortet',
 };
 
@@ -190,13 +206,13 @@ const XP_LEVELS = [10, 25, 45, 70, 100, 140, 190, 250];
 
 // Naturvidundere. Felterne giver ekstra udbytte og særlige fordele.
 const NATURAL = {
-  uluru:       { name: 'Uluru',                 on: ['desert', 'plains'],          f: 1, p: 0, t: 3, happy: 1, desc: '+3 handel, +1 tilfredshed i alle dine byer' },
+  uluru:       { name: 'Uluru',                 on: ['desert', 'plains'],          f: 1, p: 0, t: 3, happy: 1, faith: 2, desc: '+3 handel, +2 tro, +1 tilfredshed i alle dine byer' },
   canyon:      { name: 'Grand Canyon',          on: ['desert', 'plains', 'hills'], f: 0, p: 3, t: 2, def: 0.5, desc: '+3 produktion, +2 handel, +50 % forsvar' },
   kilimanjaro: { name: 'Kilimanjaro',           on: ['hills'],                     f: 2, p: 2, t: 0, def: 0.25, sight: 2, desc: '+2 mad, +2 produktion, langt udsyn' },
   victoria:    { name: 'Victoriafaldet',        on: ['grass', 'plains', 'forest', 'jungle'], river: true, f: 2, p: 0, t: 3, happy: 1, desc: '+3 handel, +1 tilfredshed i alle dine byer' },
   reef:        { name: 'Det Store Barriererev', on: ['coast'],                     f: 3, p: 0, t: 2, desc: '+3 mad, +2 handel' },
   fountain:    { name: 'Ungdomskilden',         on: ['grass', 'plains'],           f: 2, p: 0, t: 1, heal: true, desc: 'Enheder her heler helt hver tur' },
-  fuji:        { name: 'Fuji',                  on: ['hills'],                     f: 0, p: 3, t: 1, culture: 3, desc: '+3 produktion, +3 kultur til byen' },
+  fuji:        { name: 'Fuji',                  on: ['hills'],                     f: 0, p: 3, t: 1, culture: 3, faith: 2, desc: '+3 produktion, +3 kultur og +2 tro til byen' },
 };
 
 // Holdninger mellem folk
@@ -267,3 +283,28 @@ const MAPTYPES = {
 };
 
 const GP_TYPES = { sci: 'gp_sci', mer: 'gp_mer', eng: 'gp_eng', gen: 'gp_gen' };
+
+// Religioner (spillets egne) og trosretninger
+const RELIGIONS = {
+  sun:   { name: 'Solkulten',     color: '#F0C75A' },
+  tree:  { name: 'Den Gamle Tro', color: '#8FCF6A' },
+  star:  { name: 'Stjernevejen',  color: '#B9D4F2' },
+  sea:   { name: 'Havets Orden',  color: '#6FC0E0' },
+  light: { name: 'Lysets Lære',   color: '#F2A65A' },
+  earth: { name: 'Jordens Kreds', color: '#D9B67A' },
+  asa:   { name: 'Asatro',        color: '#E46C60' },
+};
+const BELIEFS = {
+  tithe:     { kind: 'founder',  name: 'Tiende',         desc: '+1 guld i den hellige by for hver by, der følger religionen' },
+  pilgrim:   { kind: 'founder',  name: 'Pilgrimme',      desc: '+1 tro i den hellige by for hver by, der følger religionen' },
+  council:   { kind: 'founder',  name: 'Kirkeråd',       desc: '+1 kultur i den hellige by for hver anden by, der følger religionen' },
+  monastery: { kind: 'follower', name: 'Klostre',        desc: '+2 forskning i byer, der følger religionen' },
+  feasts:    { kind: 'follower', name: 'Fester',         desc: '+1 tilfredshed i byer, der følger religionen' },
+  fields:    { kind: 'follower', name: 'Hellige marker', desc: '+1 mad i byer, der følger religionen' },
+  guilds:    { kind: 'follower', name: 'Laug',           desc: '+10 % produktion i byer, der følger religionen' },
+  peace:     { kind: 'follower', name: 'Fredens bud',    desc: '+20 % forsvar i byer, der følger religionen' },
+  charity:   { kind: 'follower', name: 'Næstekærlighed', desc: '+2 guld i byer, der følger religionen' },
+};
+
+// Sejrsformer
+const VICTORY = { culture: 18000, cultureWonders: 4, unEvery: 10 };

@@ -10,8 +10,10 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Byer:** byerne vokser, producerer og udvider deres grænser. Du kan vælge fokus (mad, produktion, handel) og låse de felter, indbyggerne arbejder på.
 - **Tilfredshed:** utilfredse indbyggere arbejder ikke. Templer, markeder, arenaer, katedraler, garnisoner og luksusvarer holder byerne glade, mens store riger bliver sværere at styre.
 - **Regeringsformer:** Despoti, Monarki, Republik, Demokrati og Kommunisme, hver med sine fordele og ulemper. Et skifte koster et par ture med anarki.
-- **Forskning:** 34 teknologier fra Landbrug til Rumfart, vist i et teknologitræ med forbindelser.
+- **Religion:** tro fra helligdomme, templer og Stonehenge. Grundlæg en af syv religioner med trosretninger, og spred den med missionærer og fra by til by.
+- **Forskning:** 37 teknologier fra Landbrug til Rumfart, vist i et teknologitræ med forbindelser.
 - **Militær:** landenheder, krigsskibe og indskibning. Med Sejlads sejler landenheder langs kysten, med Astronomi over åbent hav. Gamle enheder kan opgraderes for guld. Det er sværere at angribe over floder. Enheder samler erfaring og vælger forfremmelser som Stormtropper, Skovkæmper, Præcision og Felthospital.
+- **Luftkrig:** jagerfly, bombefly og luftværn. Fly står i byer, angriber på lang afstand, kan omplaceres og kan blive opsnappet.
 - **Strategiske ressourcer:** heste, jern, kul og olie på dit land kræves til bestemte enheder, fx ryttere, sværdkæmpere, jernklædte og kampvogne.
 - **Udforskning:** ruiner giver guld, teknologi, kort eller nye enheder, og naturvidundere som Uluru, Kilimanjaro og Fuji giver store fordele.
 - **Store personligheder:** videnskabsmand, købmand, ingeniør og general.
@@ -19,7 +21,10 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Diplomati:** krig og fred med 1–6 computermodstandere, der samler hære, bygger veje og kommer med tilbud. De husker, hvad du har gjort, og har en holdning til dig. I kan indgå åbne grænser, forsvarspagter og fælles krig, og de kan stille krav. Bystater kan blive dine venner eller allierede, hvis du giver dem gaver.
 - **Barbarer:** barbarer angriber fra lejre i tomme områder. Hvis du ødelægger en lejr, får du guld.
 - **Oplevelse:** du kan se modstandernes træk som animation. Spillet har lydeffekter og generativ musik, en guide de første ture og virker på mobil.
-- **Sejr:** ved erobring, ved rumskib eller på point efter tur 400. Spillet gemmes automatisk i browseren.
+- **Sejr:** ved erobring, rumskib, kultur, diplomati (afstemning i De Forenede Nationer) eller på point efter tur 400. Fremskridt for alle folk vises under Riget → Sejr.
+- **Statistik:** grafer over point, militær, teknologi, befolkning og kultur, plus en demografitabel.
+- **Gemte spil:** spillet gemmes automatisk. Der er også tre gemmepladser, og spillet kan gemmes som fil og hentes ind igen.
+- **Flere spillere:** 2–4 spillere kan spille ved samme skærm, hver med sin egen krigståge og sine egne beskeder.
 
 ## Styring
 
@@ -33,6 +38,7 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 | Befæst, grundlæg by | F, B |
 | Farm, mine, vej, ryd skov, automatisér | I, M, R, C, A |
 | Opgradér, brug stor personlighed, handelsrute | U, G, E |
+| Prædik (missionær) | P |
 | Teknologi, diplomati | T, D |
 
 ## Filer
@@ -41,6 +47,7 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - `js/game.js`: regler for kort, bevægelse, kamp, byer, tilfredshed, handel, bystater, barbarer og turgang
 - `js/ai.js`: hvad computermodstanderne, bystaterne og barbarerne beslutter
 - `js/realm.js`: regeringsformer, erfaring og forfremmelser, ruiner, naturvidundere, strategiske ressourcer og diplomatiske relationer
+- `js/world.js`: religion, luftkrig, sejr ved kultur og diplomati, historik og demografi
 - `js/art.js`: grafikken fra Paper-filen "Imperium · Grafik" (stregikoner, terræn, byer og ressourcer)
 - `js/ui.js`: tegning af kortet, input, paneler, animationer og guide
 - `js/audio.js`: lydeffekter og musik med WebAudio

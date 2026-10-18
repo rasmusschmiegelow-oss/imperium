@@ -51,12 +51,12 @@ function aiChooseBuild(c) {
   const set = (kind, key) => { c.build = { kind, key }; return true; };
   const cs = civCities(c.civ), us = civUnits(c.civ);
   const war = anyWar(c.civ);
-  const garrison = us.filter(u => isMil(u) && !isSea(u) && u.x === c.x && u.y === c.y).length;
+  const garrison = us.filter(u => isMil(u) && !isSea(u) && !isAir(u) && u.x === c.x && u.y === c.y).length;
   const mil = us.filter(u => isMil(u) && u.type !== 'scout').length;
 
   if (cv.minor) {
     if (garrison < 2 + (war ? 1 : 0)) return set('unit', bestUnitFor(cv, 'def'));
-    for (const k of ['walls', 'temple', 'granary', 'library', 'market', 'aqueduct', 'arena', 'university']) if (has('bld', k)) return set('bld', k);
+    for (const k of ['walls', 'shrine', 'temple', 'granary', 'library', 'market', 'aqueduct', 'amphitheater', 'arena', 'university']) if (has('bld', k)) return set('bld', k);
     if (mil < 4) return set('unit', bestUnitFor(cv, 'def'));
     return set('proj', 'wealth');
   }
@@ -72,6 +72,10 @@ function aiChooseBuild(c) {
   if (c.unhappy > 0) for (const k of ['temple', 'market', 'arena', 'cathedral']) if (has('bld', k)) return set('bld', k);
   if (cs.length + settlers < maxCitiesFor() && c.pop >= 2 && settlers < 2 && (c.capital || c.pop >= 3) && Math.random() < 0.8) return set('unit', 'settler');
   if (workers < Math.ceil(cs.length * 0.8)) return set('unit', 'worker');
+  const airs = us.filter(isAir).length + cs.filter(o => o.build && o.build.kind === 'unit' && UNITS[o.build.key].domain === 'air').length;
+  const enemyAir = G.units.some(v => isAir(v) && atWar(cv.id, v.civ));
+  if (enemyAir && has('unit', 'aagun') && !us.some(v => v.type === 'aagun' && v.x === c.x && v.y === c.y) && Math.random() < 0.4) return set('unit', 'aagun');
+  if (war && airs < Math.ceil(cs.length * 0.5) && (has('unit', 'bomber') || has('unit', 'fighter')) && Math.random() < 0.35) return set('unit', has('unit', 'bomber') && Math.random() < 0.6 ? 'bomber' : has('unit', 'fighter') ? 'fighter' : 'bomber');
   if (war && mil < cs.length * 3) {
     const sh = bestShip(cv);
     if (sh && cityCoastal(c) && ships < Math.ceil(cs.filter(cityCoastal).length * 0.7) && Math.random() < 0.3) return set('unit', sh);
@@ -83,13 +87,14 @@ function aiChooseBuild(c) {
   if (sh && cityCoastal(c) && ships < Math.ceil(cs.filter(cityCoastal).length * 0.4) && Math.random() < 0.15) return set('unit', sh);
   const wonders = opts.filter(o => o.kind === 'wonder');
   if (wonders.length && Math.random() < 0.3) { const w = pick(wonders); return set('wonder', w.key); }
-  const order = ['granary', 'watermill', 'library', 'market', 'temple', 'harbor', 'workshop', 'walls', 'aqueduct', 'arena', 'university', 'bank', 'cathedral', 'barracks', 'factory', 'powerplant', 'lab'];
+  const order = ['granary', 'shrine', 'watermill', 'library', 'market', 'temple', 'harbor', 'workshop', 'walls', 'aqueduct', 'amphitheater', 'arena', 'university', 'bank', 'cathedral', 'museum', 'barracks', 'factory', 'powerplant', 'airport', 'lab', 'broadcast'];
   for (const k of order) {
     if (!has('bld', k)) continue;
     if (k === 'walls' && !war && Math.random() < 0.6) continue;
     if (k === 'aqueduct' && c.pop < 6) continue;
     if ((k === 'arena' || k === 'cathedral') && c.pop < 5) continue;
     if (k === 'barracks' && cv.aggression < 1) continue;
+    if (k === 'airport' && !war) continue;
     return set('bld', k);
   }
   if (mil < cs.length * 3 + eraOf(cv)) return set('unit', bestUnitFor(cv, 'atk'));
@@ -112,7 +117,6 @@ function aiAcceptPeace(cv, other) {
 }
 
 function aiDiplomacy(cv) {
-  const h = human();
   for (const o of G.civs) {
     if (!o.alive || o.id === cv.id || o.barb || !G.met[cv.id][o.id]) continue;
     const ratio = milPower(cv.id) / (milPower(o.id) + 1);
@@ -136,7 +140,7 @@ function aiDiplomacy(cv) {
       if (since < 12) continue;
       if ((ratio < 0.8 && Math.random() < 0.12) || Math.random() < 0.015) {
         if (o.human) {
-          if (!G.offers.some(f => f.from === cv.id && f.type === 'peace')) G.offers.push({ type: 'peace', from: cv.id });
+          if (!G.offers.some(f => f.from === cv.id && f.type === 'peace' && f.to === o.id)) G.offers.push({ type: 'peace', from: cv.id, to: o.id });
         } else if (aiAcceptPeace(o, cv.id)) makePeace(cv.id, o.id);
       }
     }
@@ -148,7 +152,7 @@ function aiDiplomacy(cv) {
       ms.sort((a, b) => closestCityDist(cv.id, a.id) - closestCityDist(cv.id, b.id));
       const m = ms[0];
       giftMinor(cv, m, 100);
-      if (m.ally === G.human || (m.inf[G.human] || 0) >= 30) notify(G.human, `${cv.name} har givet en gave til ${m.name}.`, null, 'info');
+      for (const hh of G.humans || [G.human]) if (m.ally === hh || (m.inf[hh] || 0) >= 30) notify(hh, `${cv.name} har givet en gave til ${m.name}.`, null, 'info');
     }
   }
   // teknologihandel med andre AI'er
@@ -160,16 +164,18 @@ function aiDiplomacy(cv) {
       remember(cv.id, o.id, 'trade', 6, 'Handlede med os', 30); remember(o.id, cv.id, 'trade', 6, 'Handlede med os', 30);
     }
   }
-  // tilbud til spilleren
-  if (canTradeTech(cv.id, h.id) && Math.random() < 0.02 && !G.offers.some(f => f.from === cv.id)) {
+  // tilbud til spillerne
+  for (const hid of G.humans || [G.human]) {
+    const h = civ(hid);
+    if (!h.alive || !canTradeTech(cv.id, h.id) || Math.random() >= 0.02 || G.offers.some(f => f.from === cv.id && f.to === h.id)) continue;
     const sell = techsFor(cv, h).filter(k => aiWillSell(cv, h, k));
     const buy = techsFor(h, cv).filter(k => cv.gold >= aiBuyPrice(cv, k) + 30);
     if (sell.length && (Math.random() < 0.5 || !buy.length)) {
       const k = pick(sell);
-      G.offers.push({ type: 'sellTech', from: cv.id, tech: k, price: techPrice(h, k) });
+      G.offers.push({ type: 'sellTech', from: cv.id, to: h.id, tech: k, price: techPrice(h, k) });
     } else if (buy.length) {
       const k = pick(buy);
-      G.offers.push({ type: 'buyTech', from: cv.id, tech: k, price: aiBuyPrice(cv, k) });
+      G.offers.push({ type: 'buyTech', from: cv.id, to: h.id, tech: k, price: aiBuyPrice(cv, k) });
     }
   }
 }
@@ -195,7 +201,7 @@ function planArmy(cv) {
   }
   const stage = cityById(A.stage);
   if (!stage || stage.civ !== cv.id) { A.target = null; return; }
-  const army = G.units.filter(u => u.civ === cv.id && isMil(u) && !isSea(u) && u.type !== 'scout');
+  const army = G.units.filter(u => u.civ === cv.id && isMil(u) && !isSea(u) && !isAir(u) && u.type !== 'scout');
   A.atStage = army.filter(u => dist(u.x, u.y, stage.x, stage.y) <= 2).length;
   A.nearTarget = army.filter(u => dist(u.x, u.y, tgt.x, tgt.y) <= 5).length;
   const need = 3 + eraOf(cv);
@@ -225,6 +231,7 @@ function aiPlay(cv) {
   if (cv.minor) { aiPlayMinor(cv); return; }
   aiDiplomacy(cv);
   aiRelations(cv);
+  aiReligion(cv);
   if (G.turn % 5 === cv.id % 5) aiGovernment(cv);
   planArmy(cv);
   if (G.turn % 10 === cv.id % 10 || !cv.ai.roads) planRoads(cv);
@@ -234,7 +241,7 @@ function aiPlay(cv) {
   for (const c of civCities(cv.id)) {
     const threat = G.units.some(u => atWar(cv.id, u.civ) && isMil(u) && dist(u.x, u.y, c.x, c.y) <= 5);
     const need = 1 + (threat ? 1 : 0) + (c.pop >= 8 ? 1 : 0);
-    const here = units.filter(u => isMil(u) && !isSea(u) && u.x === c.x && u.y === c.y && u.type !== 'scout')
+    const here = units.filter(u => isMil(u) && !isSea(u) && !isAir(u) && u.x === c.x && u.y === c.y && u.type !== 'scout')
       .sort((a, b) => UNITS[b.type].str - UNITS[a.type].str);
     here.slice(0, need).forEach(u => garrisonIds.add(u.id));
     c.aiNeed = Math.max(0, need - here.length);
@@ -245,6 +252,8 @@ function aiPlay(cv) {
     else if (u.type === 'worker') aiWorker(u, reserved);
     else if (u.type === 'caravan') aiCaravan(u);
     else if (UNITS[u.type].gp) aiGreatPerson(u, cv);
+    else if (u.type === 'missionary') aiMissionary(u);
+    else if (isAir(u)) aiAir(u, cv);
     else if (isSea(u)) aiShip(u, cv);
     else aiMilitary(u, cv, garrisonIds.has(u.id));
     if (G.over) return;
@@ -578,7 +587,7 @@ function aiBarbarians(cv) {
     let tgt = null, td = 9;
     for (const c of G.cities) { const d = dist(c.x, c.y, u.x, u.y); if (d < td) { td = d; tgt = idx(c.x, c.y); } }
     for (const v of G.units) {
-      if (v.civ === cv.id || isSea(v) || embarked(v)) continue;
+      if (v.civ === cv.id || isSea(v) || isAir(v) || embarked(v)) continue;
       const d = dist(v.x, v.y, u.x, u.y);
       if (d < td - (isMil(v) ? 0 : 2)) { td = d; tgt = idx(v.x, v.y); }
     }

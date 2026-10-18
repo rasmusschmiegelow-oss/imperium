@@ -24,7 +24,7 @@ function adoptGov(cv, k) {
   const turns = anarchyTurns(cv);
   cv.nextGov = k; cv.gov = 'anarchy'; cv.anarchy = turns; cv.govChanged = G.turn;
   notify(cv.id, `Revolution! Efter ${turns} ture med anarki bliver ${GOVS[k].name} indført.`, null, 'warn');
-  if (!cv.human && G.met[G.human][cv.id]) notify(G.human, `${cv.name} gennemgår en revolution og skifter til ${GOVS[k].name}.`, null, 'info');
+  if (!cv.human) for (const hh of G.humans || [G.human]) if (G.met[hh][cv.id]) notify(hh, `${cv.name} gennemgår en revolution og skifter til ${GOVS[k].name}.`, null, 'info');
   assignAllTiles();
   return true;
 }
@@ -338,20 +338,20 @@ function aiGovernment(cv) {
 }
 
 function aiRelations(cv) {
-  const h = human();
   for (const o of majors()) {
+    const h = o;
     if (!o.alive || o.id === cv.id || !G.met[cv.id][o.id] || atWar(cv.id, o.id)) continue;
     const att = attitude(cv.id, o.id).score;
     if (o.human) {
-      if (!hasOB(cv.id, o.id) && att >= 10 && Math.random() < 0.012 && !G.offers.some(f => f.from === cv.id)) G.offers.push({ type: 'ob', from: cv.id });
-      else if (!hasPact(cv.id, o.id) && att >= 35 && G.turn > 40 && Math.random() < 0.006 && !G.offers.some(f => f.from === cv.id)) G.offers.push({ type: 'pact', from: cv.id });
+      if (!hasOB(cv.id, o.id) && att >= 10 && Math.random() < 0.012 && !G.offers.some(f => f.from === cv.id && f.to === o.id)) G.offers.push({ type: 'ob', from: cv.id, to: o.id });
+      else if (!hasPact(cv.id, o.id) && att >= 35 && G.turn > 40 && Math.random() < 0.006 && !G.offers.some(f => f.from === cv.id && f.to === o.id)) G.offers.push({ type: 'pact', from: cv.id, to: o.id });
       // fælles krig
       const foe = majors().find(e => e.alive && e.id !== h.id && atWar(cv.id, e.id) && !atWar(h.id, e.id) && G.met[h.id][e.id] && !hasPact(h.id, e.id));
-      if (foe && att >= 15 && Math.random() < 0.01 && cv.gold >= 60 && !G.offers.some(f => f.from === cv.id)) G.offers.push({ type: 'jointwar', from: cv.id, target: foe.id, gold: Math.min(150, Math.floor(cv.gold * 0.5)) });
+      if (foe && att >= 15 && Math.random() < 0.01 && cv.gold >= 60 && !G.offers.some(f => f.from === cv.id && f.to === o.id)) G.offers.push({ type: 'jointwar', from: cv.id, to: o.id, target: foe.id, gold: Math.min(150, Math.floor(cv.gold * 0.5)) });
       // krav
       const ratio = milPower(cv.id) / (milPower(o.id) + 1);
-      if (att <= -15 && ratio > 1.8 && closestCityDist(cv.id, o.id) <= 10 && G.turn > 30 && Math.random() < 0.008 && o.gold >= 60 && !G.offers.some(f => f.from === cv.id)) {
-        G.offers.push({ type: 'demand', from: cv.id, gold: Math.round(Math.min(o.gold * 0.5, 80 + eraOf(cv) * 40)) });
+      if (att <= -15 && ratio > 1.8 && closestCityDist(cv.id, o.id) <= 10 && G.turn > 30 && Math.random() < 0.008 && o.gold >= 60 && !G.offers.some(f => f.from === cv.id && f.to === o.id)) {
+        G.offers.push({ type: 'demand', from: cv.id, to: o.id, gold: Math.round(Math.min(o.gold * 0.5, 80 + eraOf(cv) * 40)) });
       }
     } else if (o.id > cv.id) {
       const back = attitude(o.id, cv.id).score;
