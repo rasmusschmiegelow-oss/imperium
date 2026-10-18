@@ -25,6 +25,7 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Statistik:** grafer over point, militær, teknologi, befolkning og kultur, plus en demografitabel.
 - **Gemte spil:** spillet gemmes automatisk. Der er også tre gemmepladser, og spillet kan gemmes som fil og hentes ind igen.
 - **Flere spillere:** 2–4 spillere kan spille ved samme skærm, hver med sin egen krigståge og sine egne beskeder.
+- **Online:** under Spil online opretter du et spil og får en kode på 5 tegn, som dine venner bruger til at deltage. I spiller tur for tur fra hver jeres enhed, og man får besked i realtid, når det er ens tur. Spillet gemmes i Supabase.
 
 ## Styring
 
@@ -53,3 +54,9 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - `js/audio.js`: lydeffekter og musik med WebAudio
 
 Al grafik tegnes gennem `ART` i `js/ui.js`. Du kan sætte rigtige sprites ind ved at lægge billeder i `ART.images` (fx `unit_warrior`, `terrain_grass`, `res_wheat`, `city`, `camp`).
+
+## Online (Supabase)
+
+Online-spil bruger et Supabase-projekt med anonymt login. Databasen sættes op ved at køre `supabase/schema.sql` i Supabase → SQL Editor. Adressen og den offentlige nøgle står øverst i `js/online.js`. Nøglen er beregnet til at ligge i en hjemmeside, og databasens regler sørger for, at kun spillerne i et spil kan se det, og at kun den spiller, der er i tur, kan gemme.
+
+Alle spilleres browsere får hele spillet, så en spiller med teknisk snilde kan i princippet se bag krigstågen.

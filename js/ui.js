@@ -79,7 +79,7 @@ const UI = {
     pickEl.innerHTML = CIVS.map(c => `<button type="button" data-k="${c.key}" class="${c.key === chosen ? 'on' : ''}"><i style="background:${c.color}"></i>${esc(c.name)}</button>`).join('');
     pickEl.onclick = (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      chosen = b.dataset.k;
+      chosen = b.dataset.k; this.chosenCiv = chosen;
       pickEl.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
     };
     $('#btn-continue').hidden = !hasSave();
@@ -111,6 +111,7 @@ const UI = {
     };
     $('#btn-continue').onclick = () => { if (loadGame()) this.enterGame(); };
     $('#btn-load').onclick = () => this.openLoad();
+    $('#btn-online').onclick = () => this.openOnline();
     // baggrundskort til startskærmen
     newGame({ civ: 'dk', opponents: 3, size: 'medium', difficulty: 'normal', mapType: 'continents', tutorial: false });
     G.explored.fill(1); VIS = new Uint8Array(G.w * G.h).fill(1);
@@ -280,6 +281,7 @@ const UI = {
       if (k === 'ArrowDown') { this.cam.y += pan; this.clampCam(); this.dirty(); e.preventDefault(); return; }
       if (k === '+' || k === '=') { this.zoomAt(1.2, this.w / 2, this.h / 2); return; }
       if (k === '-') { this.zoomAt(1 / 1.2, this.w / 2, this.h / 2); return; }
+      if (this.readOnly && !['t', 'T', 'd', 'D'].includes(k)) return;
       if (k === 'Enter') { e.preventDefault(); this.onEndTurn(); return; }
       if (k === 't' || k === 'T') { this.openTech(); return; }
       if (k === 'd' || k === 'D') { this.openDiplo(); return; }
@@ -359,6 +361,7 @@ const UI = {
 
   onClick(i, right) {
     if (this.busy || G.over) return;
+    if (this.readOnly) { if (i >= 0 && G.explored[i]) { this.sel = { tile: i }; this.reach = null; this.refresh(); } return; }
     // styring af byfelter mens byen er åben
     if (this.drawer && !right) {
       const c = cityById(this.drawer.city);
@@ -446,6 +449,7 @@ const UI = {
   },
 
   doAction(a) {
+    if (this.readOnly) return;
     const u = this.selUnit(); if (!u) return;
     if (a === 'skip') { this.skip.add(u.id); this.selectNext(); return; }
     if (a === 'fort') { if (!isMil(u)) u.sleep = true; else u.fort = true; u.path = null; this.selectNext(); return; }
@@ -484,6 +488,7 @@ const UI = {
 
   async onEndTurn() {
     if (this.busy || G.over || this.anim) return;
+    if (this.readOnly) { notify(G.human, 'Det er ikke din tur endnu. Du får besked, når det er.', null, 'warn'); return; }
     this.closeDrawer();
     const blocker = this.blocker();
     if (blocker) { blocker.go(); return; }
@@ -495,6 +500,7 @@ const UI = {
     try { res = endTurn(); } catch (err) { console.error(err); }
     this.skip = new Set();
     this.busy = false; $('#busy').hidden = true;
+    if (this.online) { await this.finishOnlineTurn(res); return; }
     saveGame();
     if (G.over) { this.refresh(); this.showGameOver(); return; }
     if (res === 'handover') { this.sel = null; this.closeModal(true); this.refresh(); this.showHandover(false); return; }
@@ -614,10 +620,10 @@ const UI = {
     $('#stat-faith').innerHTML = `${ART.miscGlyph('faith', 15)}<b class="faith">${Math.floor(h.faith || 0)}</b><span>+${fInc}</span>`;
     $('#stat-faith').title = rel ? `Tro. Din religion: ${RELIGIONS[rel].name}. Køb missionærer i byer, der følger den.` : canFoundReligion(h) ? 'Du kan grundlægge en religion nu!' : `Tro. ${religionSlotsLeft() > 0 ? `En religion koster ${religionCost()} tro.` : 'Der er ikke flere religioner at grundlægge.'}`;
     $('#stat-faith').classList.toggle('ready', canFoundReligion(h));
-    const b = this.blocker();
+    const b = this.readOnly ? null : this.blocker();
     const et = $('#endturn');
-    et.textContent = b ? b.label : 'Afslut tur';
-    et.classList.toggle('blocker', !!b);
+    et.textContent = this.readOnly ? 'Venter …' : b ? b.label : this.online ? 'Afslut og send tur' : 'Afslut tur';
+    et.classList.toggle('blocker', !!b || this.readOnly);
     const w = this.waitingUnits().length;
     $('#waiting').innerHTML = w ? `${w} ${w === 1 ? 'enhed venter' : 'enheder venter'} · <button type="button" id="btn-next">Næste</button>` : '';
     const bn = $('#btn-next'); if (bn) bn.onclick = () => this.selectNext();
