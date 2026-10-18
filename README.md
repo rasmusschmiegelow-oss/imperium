@@ -17,6 +17,11 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - **Sagaer og helte:** enheder med tre sejre bliver navngivne helte med deres egen saga. Byer kan få tilnavne som den Uindtagelige, den Prægtige og den Hellige. Krøniken under Riget fortæller historien.
 - **Verdenskriser:** Den Store Vinter, Den Sorte Død, Kometen, Stormfloden og Græshoppesværmen rammer alle. Folkene kan samle guld til en fælles indsats, og de husker, hvem der hjalp.
 - **Eftermæle og arvestykker:** når spillet slutter, får dit folk en gravskrift og point for eftermæle i syv kategorier. Pointene samles i Æresbogen og låser arvestykker op, som du kan tage med ind i nye spil, fx Odins ravne, Jellingstenen og Guldhornene.
+- **Profetier:** ved hver ny tidsalder viser oraklet tre spådomme, fx at rejse to vidundere, holde fred eller finde et sagnsted. Vælg én. Opfylder du den inden fristen, giver guderne en gave. Ellers rammes du af oraklets vrede.
+- **Magtfaktioner:** Krigerne, Købmændene, Præsterne og Bønderne reagerer på det, du gør. Loyale faktioner giver fordele, utilfredse koster, og meget vrede faktioner skaber kriser som kupforsøg, handelsstrejke, kætteri og bondeoprør. Se dem under Riget → Folket.
+- **Togter og sagnsteder:** Atlantis, El Dorado, Valhallas Port, Avalon, Shangri-La og Yggdrasil ligger gemt på kortet. Rygter viser et søgeområde. Find stederne med en enhed, eller send et togt, hvor du træffer valg undervejs. Den, der kommer først, får gaven.
+- **Runesten:** rejs en runesten i en by med din egen indskrift. Den vises også med runer og giver kultur og tilfredshed.
+- **Skjalden:** de store øjeblikke vises som sagakort. I menuen kan du slå oplæsning på dansk til.
 - **Religion:** tro fra helligdomme, templer og Stonehenge. Grundlæg en af syv religioner med trosretninger, og spred den med missionærer og fra by til by.
 - **Forskning:** 37 teknologier fra Landbrug til Rumfart, vist i et teknologitræ med forbindelser.
 - **Militær:** landenheder, krigsskibe og indskibning. Med Sejlads sejler landenheder langs kysten, med Astronomi over åbent hav. Gamle enheder kan opgraderes for guld. Det er sværere at angribe over floder. Enheder samler erfaring og vælger forfremmelser som Stormtropper, Skovkæmper, Præcision og Felthospital.
@@ -66,6 +71,8 @@ Et turbaseret strategispil i stil med Sid Meier's Civilization, skrevet i ren HT
 - `js/society-ui.js`: skærmbilleder til samfund, ledere og begivenheder
 - `js/saga.js`: årstider, dynasti, helte, krønike, verdenskriser, eftermæle og arvestykker
 - `js/saga-ui.js`: skærmbilleder til det samme
+- `js/folk.js`: profetier, magtfaktioner, sagnsteder, togter og runesten
+- `js/folk-ui.js`: skærmbilleder til det samme og skjalden
 - `js/online.js`: onlinespil, lobby, chat, overtagelse og spillerkoder
 - `js/art.js`: grafikken fra Paper-filen "Imperium · Grafik" (stregikoner, terræn, byer og ressourcer)
 - `js/ui.js`: tegning af kortet, input, paneler, animationer og guide

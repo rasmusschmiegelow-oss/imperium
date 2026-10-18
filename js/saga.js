@@ -124,7 +124,6 @@ function heirsFor(cv) {
 function traitFx(cv) {
   const fx = {};
   if (cv && cv.ruler) for (const t of cv.ruler.traits) { const T = TRAITS[t]; if (T) for (const f in T.fx) fx[f] = (fx[f] || 0) + T.fx[f]; }
-  if (cv && cv.relic && RELICS[cv.relic] && RELICS[cv.relic].fx) for (const f in RELICS[cv.relic].fx) fx[f] = (fx[f] || 0) + RELICS[cv.relic].fx[f];
   return fx;
 }
 function crown(cv, heir, note) {
@@ -217,10 +216,11 @@ function checkEpithets(cid) {
 }
 
 // ---------- Krøniken ----------
-function chron(cid, kind, text) {
+function chron(cid, kind, text, about) {
   if (!G.chron) G.chron = [];
   if (cid >= 0 && !isMajor(civ(cid))) return;
-  G.chron.push({ turn: G.turn, civ: cid, kind, text, era: cid >= 0 ? eraOf(civ(cid)) : worldEra() });
+  G.chronId = (G.chronId || 0) + 1;
+  G.chron.push({ id: G.chronId, turn: G.turn, civ: cid, kind, text, about, era: cid >= 0 ? eraOf(civ(cid)) : worldEra() });
   if (G.chron.length > 600) G.chron.splice(0, G.chron.length - 600);
 }
 function eraTurn(cv) {
@@ -338,7 +338,7 @@ const LEGACY_CATS = {
   science: { name: 'Viden', calc: (cv) => cv.techs.length * 4 },
   faith: { name: 'Tro', calc: (cv) => { const r = civReligion(cv.id); return r ? 40 + followers(r) * 3 : 0; } },
   unity: { name: 'Fællesskab', calc: (cv) => Math.round(cv.stats.crisis / 10) + cv.stats.crisisWins * 30 + G.civs.filter(m => m.minor && m.ally === cv.id).length * 15 },
-  saga: { name: 'Sagaer', calc: (cv) => cv.stats.heroes * 15 + cv.stats.epithets * 12 },
+  saga: { name: 'Sagaer', calc: (cv) => cv.stats.heroes * 15 + cv.stats.epithets * 12 + (cv.stats.prophecies || 0) * 15 + (cv.legends || []).length * 25 + (cv.stats.runes || 0) * 5 },
   dynasty: { name: 'Dynasti', calc: (cv) => cv.stats.rulers * 6 + (cv.ga.count || 0) * 10 },
 };
 const EPITAPHS = {
@@ -387,6 +387,7 @@ function ensureSagaState() {
   if (!G.chron) G.chron = [];
   if (G.crisis === undefined) G.crisis = null;
   if (!G.gameId) G.gameId = Math.random().toString(36).slice(2, 10);
+  if (G.chronId == null) { G.chronId = 0; for (const e of G.chron) e.id = ++G.chronId; }
   for (const cv of G.civs) {
     if (!isMajor(cv)) continue;
     if (!cv.stats) cv.stats = { kills: 0, captured: 0, heroes: 0, epithets: 0, crisis: 0, crisisWins: 0, rulers: 0 };
@@ -398,4 +399,5 @@ function ensureSagaState() {
       cv.stats.rulers = 1;
     }
   }
+  ensureFolkState();
 }

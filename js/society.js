@@ -41,8 +41,7 @@ const POLICY_FINISH = 'Når hele grenen er indført, begynder en guldalder.';
 function policyFx(cv) {
   const fx = {};
   for (const k of (cv && cv.policies) || []) { const p = POLICIES[k]; if (p) for (const f in p.fx) fx[f] = (fx[f] || 0) + p.fx[f]; }
-  const tf = traitFx(cv);
-  for (const f in tf) fx[f] = (fx[f] || 0) + tf[f];
+  for (const s of fxSources(cv)) for (const f in s.fx) fx[f] = (fx[f] || 0) + s.fx[f];
   return fx;
 }
 function treeOpen(cv, t) { const tr = POLICY_TREES[t]; return !tr.tech || cv.techs.includes(tr.tech); }
@@ -119,17 +118,17 @@ function societyCity(c, cv) {
   if (c.build && c.build.kind === 'wonder') r.pm += f.wonderProd || 0;
   if (c.build && c.build.key === 'settler') r.pm += f.settlerProd || 0;
   if (ga) { r.pm += 0.2; r.gm += 0.2; r.culture += 2; }
-  r.f += c.fertile || 0;
+  r.f += (c.fertile || 0) + (f.cityFood || 0);
+  if (c.rune) r.culture += 2;
   crisisCity(c, r);
   return r;
 }
 function societyHappy(c, cv, src) {
-  const f = policyFx(cv), tf = traitFx(cv);
-  const ph = (f.happy || 0) - (tf.happy || 0);
+  const f = policyFx(cv);
+  const ph = (cv.policies || []).reduce((a, k) => a + (POLICIES[k].fx.happy || 0), 0);
   if (ph) src.push(['Samfundspolitikker', ph]);
-  const rh = cv.relic && RELICS[cv.relic].fx ? RELICS[cv.relic].fx.happy || 0 : 0;
-  if (rh) src.push([RELICS[cv.relic].name, rh]);
-  if (tf.happy - rh) src.push([`Herskeren ${cv.ruler ? cv.ruler.name : ''}`.trim(), tf.happy - rh]);
+  for (const s of fxSources(cv)) if (s.fx.happy) src.push([s.name, s.fx.happy]);
+  if (c.rune) src.push(['Runesten', 1]);
   if (G.crisis && G.crisis.key === 'comet' && crisisHits(c.civ)) src.push(['Frygt for kometen', -2]);
   if (f.garrisonHappy && G.units.some(u => u.civ === c.civ && u.x === c.x && u.y === c.y && isMil(u))) src.push(['Militærkaste', f.garrisonHappy]);
   if (c.appeased && c.appeased > G.turn) src.push(['Opfyldte krav', 2]);
@@ -385,6 +384,7 @@ function societyTurn(cv, culture) {
   } else aiPolicy(cv);
   rollEvent(cv);
   sagaTurn(cv);
+  folkTurn(cv);
 }
 function ensureSocietyState() {
   for (const cv of G.civs) {

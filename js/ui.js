@@ -341,6 +341,7 @@ const UI = {
     const res = t.res && resVisible(t.res, human()) ? RESOURCES[t.res] : null;
     const parts = [`<b>${T.name}</b>${res ? ` · ${res.name}${res.lux ? ' (luksusvare)' : res.strat ? ' (strategisk)' : ''}` : ''}${t.river ? ' · flod' : ''}`];
     if (t.nat) parts.push(`<b style="color:var(--bronze-hi)">${esc(NATURAL[t.nat].name)}</b> · ${esc(NATURAL[t.nat].desc)}`);
+    if (t.legend && G.legends[t.legend] && G.legends[t.legend].found != null) parts.push(`<b style="color:#F2C14E">${esc(LEGENDS[t.legend].name)}</b> · ${esc(LEGENDS[t.legend].desc)} Fundet af ${esc(civ(G.legends[t.legend].found).name)}.`);
     if (t.ruin) parts.push('<b style="color:var(--bronze-hi)">Ruiner</b> · gå ind med en enhed for at udforske dem');
     parts.push(`<span style="color:var(--food)">${y.f} mad</span> · <span style="color:var(--prod)">${y.p} prod.</span> · <span style="color:var(--gold)">${y.t} handel</span>`);
     const imp = [t.imp === 'farm' ? 'Farm' : t.imp === 'mine' ? 'Mine' : null, t.road ? 'Vej' : null].filter(Boolean);
@@ -640,6 +641,7 @@ const UI = {
     const w = this.waitingUnits().length;
     $('#waiting').innerHTML = w ? `${w} ${w === 1 ? 'enhed venter' : 'enheder venter'} · <button type="button" id="btn-next">Næste</button>` : '';
     const bn = $('#btn-next'); if (bn) bn.onclick = () => this.selectNext();
+    this.skaldCheck();
   },
 
   renderGuide() {
@@ -798,12 +800,13 @@ const UI = {
       if (detail) for (const i of vis) this.drawExtras(i);
       for (const i of vis) this.drawBorders(i);
       this.drawRoutes();
+      this.drawRumors();
       for (const cp of G.camps) if (G.explored[cp.i] && this.inView(cp.i)) { const [cx, cy] = centerI(cp.i); ART.camp(ctx, cx, cy); }
       ctx.fillStyle = 'rgba(6,8,12,0.5)';
       for (const i of vis) if (!VIS[i]) { const [cx, cy] = centerI(i); this.hexPath(cx, cy, S + 0.6); ctx.fill(); }
       this.drawCityOverlay();
       this.drawSelection();
-      for (const c of G.cities) { const i = idx(c.x, c.y); if (G.explored[i] && this.inView(i)) { const [cx, cy] = centerI(i); ART.city(ctx, c, cx, cy); this.drawCityHp(c, cx, cy); } }
+      for (const c of G.cities) { const i = idx(c.x, c.y); if (G.explored[i] && this.inView(i)) { const [cx, cy] = centerI(i); ART.city(ctx, c, cx, cy); if (c.rune) ART.misc(ctx, 'runestone', cx + S * 0.66, cy + S * 0.4, S * 0.42); this.drawCityHp(c, cx, cy); } }
       for (const [i, us] of this.unitMap) if (VIS[i] && this.inView(i)) this.drawStack(i, us);
       const u = this.selUnit();
       if (u && (this.pathPreview || u.path)) this.drawPath(u, this.pathPreview ? this.pathPreview.path : u.path, this.pathPreview ? this.pathPreview.turns : null);
@@ -873,6 +876,7 @@ const UI = {
     }
     if (t.res && !cityAt(i) && resVisible(t.res, human())) ART.resource(ctx, t.res, cx + S * 0.38, cy - S * 0.36, S * 0.44);
     if (t.ruin) ART.ruin(ctx, cx - S * 0.05, cy + S * 0.12);
+    if (t.legend) this.drawLegend(i, t, cx, cy);
     if (t.nat) {
       ART.natural(ctx, t.nat, cx, cy + S * 0.05);
       if (this.cam.z > 0.8) {
@@ -1182,6 +1186,8 @@ const UI = {
         ${group('unit', 'Enheder')}${group('bld', 'Bygninger')}${group('wonder', 'Vidundere')}${group('proj', 'Projekter')}
         <div class="section-h">Handelsruter (${routesOf(c).length}/${maxRoutes(c)})</div>
         <div class="chips">${routes || '<span style="color:var(--muted)">Ingen endnu. Byg en karavane, og send den til en by mindst 6 felter væk.</span>'}</div>
+        <div class="section-h">Runesten</div>
+        ${this.runeHtml(c)}
         <div class="section-h">I byen</div>
         <div class="chips">${c.blds.length || wondersHere.length ? c.blds.map(b => `<span class="chip">${esc(BUILDINGS[b].name)}</span>`).join('') + wondersHere.map(w => `<span class="chip w">${esc(w)}</span>`).join('') : '<span style="color:var(--muted)">Ingen bygninger endnu.</span>'}</div>
       </div>`;
@@ -1195,6 +1201,7 @@ const UI = {
     d.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { c.focus = b.dataset.f; assignAllTiles(); this.refresh(); });
     d.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { const [kind, key] = b.dataset.q.split(':'); queueAdd(c, { kind, key }); this.refresh(); });
     d.querySelectorAll('[data-qd]').forEach(b => b.onclick = () => { c.queue.splice(+b.dataset.qd, 1); this.refresh(); });
+    const ro = d.querySelector('#rune-open'); if (ro) ro.onclick = () => this.openRune(c);
     const un = d.querySelector('#unlock'); if (un) un.onclick = () => { c.locked = []; assignAllTiles(); this.refresh(); };
     const bm = d.querySelector('#buymis'); if (bm) bm.onclick = () => { const u = buyMissionary(c); if (u) { SFX.play('tech'); notify(G.human, `En missionær er klar i ${c.name}.`, idx(c.x, c.y), 'good'); this.refresh(); } };
     const buy = d.querySelector('#buy');
@@ -1325,13 +1332,14 @@ const UI = {
 
   openRealm(tab) {
     this.realmTab = tab || this.realmTab || 'gov';
-    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['society', 'Samfund', 'pol_tradition'], ['chronicle', 'Krønike', 'chronicle'], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
-    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'society' ? this.societyHtml() : this.realmTab === 'chronicle' ? this.chronicleHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
-    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory' || this.realmTab === 'society' || this.realmTab === 'chronicle');
+    const tabs = [['gov', 'Regering', 'gov_' + human().gov], ['society', 'Samfund', 'pol_tradition'], ['folk', 'Folket', 'fac_warriors'], ['chronicle', 'Krønike', 'chronicle'], ['legends', 'Togter', 'leg_compass'], ['religion', 'Religion', 'faith'], ['victory', 'Sejr', 'v_points'], ['stats', 'Statistik', 'stats']];
+    const body = this.realmTab === 'gov' ? this.govHtml() : this.realmTab === 'society' ? this.societyHtml() : this.realmTab === 'chronicle' ? this.chronicleHtml() : this.realmTab === 'folk' ? this.folkHtml() : this.realmTab === 'legends' ? this.legendsHtml() : this.realmTab === 'religion' ? this.religionHtml() : this.realmTab === 'victory' ? this.victoryHtml() : this.statsHtml();
+    const bg = this.modal('Riget', `<div class="tabs">${tabs.map(([k, n, ic]) => `<button type="button" data-tab="${k}" class="${this.realmTab === k ? 'on' : ''}">${ART.miscGlyph(ic, 16)} ${n}</button>`).join('')}</div>${body}`, '', this.realmTab === 'stats' || this.realmTab === 'victory' || this.realmTab === 'society' || this.realmTab === 'chronicle' || this.realmTab === 'folk' || this.realmTab === 'legends');
     bg.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => this.openRealm(b.dataset.tab));
     if (this.realmTab === 'gov') this.bindGov(bg);
     if (this.realmTab === 'religion') this.bindReligion(bg);
     if (this.realmTab === 'society') this.bindSociety(bg);
+    if (this.realmTab === 'legends') this.bindLegends(bg);
     if (this.realmTab === 'stats') this.bindStats(bg);
   },
 
@@ -1596,6 +1604,7 @@ const UI = {
     this.offerNo = null;
     if (o.type === 'event') return this.showEvent(o);
     if (o.type === 'heir') return this.showHeir(o);
+    if (o.type === 'prophecy') return this.showProphecy(o);
     const c = civ(o.from);
     const h = human();
     if (!c.alive) return false;
@@ -1648,6 +1657,8 @@ const UI = {
         <label for="snd"><input type="checkbox" id="snd" ${SFX.sound ? 'checked' : ''}> Lydeffekter</label>
         <label for="mus"><input type="checkbox" id="mus" ${SFX.music ? 'checked' : ''}> Musik</label>
         <label for="gd"><input type="checkbox" id="gd" ${G.tutorial && G.tutorial.on ? 'checked' : ''}> Vis guide</label>
+        <label for="sk-cards"><input type="checkbox" id="sk-cards" ${this.skaldPrefs().cards ? 'checked' : ''}> Skjaldens sagakort</label>
+        <label for="sk-voice"><input type="checkbox" id="sk-voice" ${this.skaldPrefs().voice ? 'checked' : ''}> Skjalden læser højt</label>
       </div>
       <dl class="help">
       <dt>Flyt og angrib</dt><dd>Vælg en enhed, og klik på et felt. Højreklik virker også. Røde felter kan angribes. Med Sejlads kan landenheder gå ud på kystfelter og sejle.</dd>
@@ -1667,6 +1678,8 @@ const UI = {
     bg.querySelector('#snd').onchange = (e) => SFX.setSound(e.target.checked);
     bg.querySelector('#mus').onchange = (e) => SFX.setMusic(e.target.checked);
     bg.querySelector('#gd').onchange = (e) => { if (!G.tutorial) G.tutorial = { on: false, step: 0 }; G.tutorial.on = e.target.checked; this.renderGuide(); };
+    bg.querySelector('#sk-cards').onchange = (e) => this.setSkald('cards', e.target.checked);
+    bg.querySelector('#sk-voice').onchange = (e) => { this.setSkald('voice', e.target.checked); if (e.target.checked) this.speak('Hør, hvad skjalden kvæder.'); };
     bg.querySelector('#m-close').onclick = () => this.closeModal();
     bg.querySelector('#m-save').onclick = (e) => { e.target.textContent = saveGame() ? 'Gemt' : 'Kunne ikke gemme'; };
     const nb = bg.querySelector('#m-new');

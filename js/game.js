@@ -315,6 +315,8 @@ function newGame(opts) {
   }
   ensureStartResources(starts, majorKeys.length);
   placeRuinsAndWonders(starts);
+  for (const t of G.tiles) delete t.legend;
+  placeLegends(starts);
   G.civs.forEach((cv, k) => {
     if (cv.barb || starts[k] == null) return;
     const [x, y] = xy(starts[k]);
@@ -579,6 +581,7 @@ function stepUnit(u, to) {
     gainXp(u, 5);
   }
   if (G.tiles[to].ruin && !isSea(u) && isMajor(civ(u.civ))) claimRuin(u, to);
+  if (G.tiles[to].legend && isMajor(civ(u.civ))) discoverLegend(u.civ, G.tiles[to].legend);
   if (u.civ === G.human) updateVisibility();
   else meetCheck(u.civ, to);
 }
@@ -816,7 +819,7 @@ function captureCity(u, c) {
   for (const t of G.tiles) if (t.city === c.id) t.owner = u.civ;
   c.captures = (c.captures || 0) + 1;
   if (isMajor(civ(u.civ))) civ(u.civ).stats.captured++;
-  chron(u.civ, 'war', `${civ(u.civ).name} erobrede ${cityTitle(c)} fra ${civ(old).name}${u.hero ? `, anført af ${u.hero}` : ''}.`);
+  chron(u.civ, 'war', `${civ(u.civ).name} erobrede ${cityTitle(c)} fra ${civ(old).name}${u.hero ? `, anført af ${u.hero}` : ''}.`, old);
   notify(u.civ, `Du har erobret ${c.name}!`, i, 'good');
   notify(old, `${c.name} er faldet til ${civ(u.civ).name}!`, i, 'bad');
   remember(old, u.civ, 'city', -25, 'Erobrede vores byer', 80);
@@ -1420,7 +1423,7 @@ function declareWar(a, b, quiet, viaPact) {
   meet(a, b);
   onWarDeclared(a, b, viaPact);
   if (civ(b).minor && isMajor(civ(a))) civ(b).inf[a] = -50;
-  if (isMajor(civ(a)) && isMajor(civ(b))) chron(a, 'war', `${civ(a).name} erklærede krig mod ${civ(b).name}.`);
+  if (isMajor(civ(a)) && isMajor(civ(b))) chron(a, 'war', `${civ(a).name} erklærede krig mod ${civ(b).name}.`, b);
   if (quiet) return;
   if (civ(a).human) notify(a, `Du har erklæret krig mod ${civ(b).name}.`, null, 'bad');
   if (civ(b).human) notify(b, `${civ(a).name} har erklæret krig mod dig!`, null, 'bad');
